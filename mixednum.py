@@ -14,6 +14,13 @@ class Elem:
     def rational(self):
         return(self.__rational)
 
+    @staticmethod
+    def name_in_list(name, list):
+        found = False
+        for idx in range(len(list)):
+            if list[idx].name == name:
+                return idx
+        return None
 
 class MixedNum:
 
@@ -21,15 +28,11 @@ class MixedNum:
         self.__list = []
         for inList in inLists:
             for item in inList:
-                found = False
-                for idx in range(len(self.__list)):
-                    if self.__list[idx].name == item.name:
-                        self.__list[idx] = Elem(self.__list[idx].rational.add(item.rational), item.name)
-                        found = True
-                        break
-                if not found:
+                idx = Elem.name_in_list(item.name, self.__list)
+                if idx == None:
                     self.__list.append(Elem(item.rational, item.name))
-
+                else:
+                    self.__list[idx] = Elem(self.__list[idx].rational.add(item.rational), item.name)
 
     @property
     def list(self):
@@ -84,6 +87,8 @@ class Converter:
     __lowest     = ''
     __lowestMul  = 0
     __lowestRate = 0
+    __ranged = []
+    __isRanged = False
 
     @property
     def rates(self):
@@ -97,6 +102,9 @@ class Converter:
     def lowest(self):
         return(self.__lowest)
 
+    @property
+    def ranged(self):
+        return(self.__ranged)
 
     def add_rate(self, source, target, multiplicity, rate):
 
@@ -150,10 +158,19 @@ class Converter:
                     self.__lowestMul  = multiplicity
                     self.__lowestRate = rate
 
+            frac = Frac(0,rate, multiplicity)
+            idx = Elem.name_in_list(source, self.__ranged)
+            if idx == None:
+                self.__ranged.append(Elem(frac, source))
+            else:
+                if (self.__ranged[idx].rational.sub(frac).intSign() > 0):
+                    self.__ranged[idx] = Elem(frac, source)
+
             #inverted
             if not (target, source) in self.__rates:
                 add_record(target, source, rate, multiplicity)
             
+            self.__isRanged = False
             return True
 
         #main body
@@ -179,6 +196,17 @@ class Converter:
         return (add_record(source, target, multiplicity, rate))
 
     def convert(self, mixedNum, *measures):
+
+        if not self.__isRanged:
+            done = False
+            while not done:
+                done = True
+                for idx in range(1,len(self.__ranged)):
+                    if (self.__ranged[idx].rational.sub(self.__ranged[idx-1].rational).intSign() < 0):
+                        self.__ranged[idx], self.__ranged[idx-1] = self.__ranged[idx-1], self.__ranged[idx]
+                        done = False
+            self.__isRanged = True
+
         lowestNum = Frac() # representing lowest measure
         unConverted = []
         for elem in mixedNum.list:

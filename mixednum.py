@@ -1,4 +1,3 @@
-from decimal import DivisionByZero
 from rationals import Rational as Frac
 
 class Elem:
@@ -81,7 +80,7 @@ class MixedNum:
         lowestSelf  = converter.convert_to_lowest(self, measureSet).pack()
         lowestOther = converter.convert_to_lowest(other, measureSet).pack()
         if len(lowestOther.__list) == 0:
-            raise DivisionByZero('division by zero')
+            raise ZeroDivisionError('division by zero')
 
         minimalDividend = None
         for name_ in lowestOther.names():
@@ -99,10 +98,6 @@ class MixedNum:
 
         return(minimalDividend, remainder)
 
-        #if (len(lowestSelf.list) != 1) or (len(lowestOther.list) != 1):
-        #    raise ValueError('incompatible measures')
-        #return(lowestSelf.list[0].rational.div(lowestOther.list[0].rational))
-
     @staticmethod
     def name_in_list(name, list):
         for idx in range(len(list)):
@@ -114,11 +109,7 @@ class MixedNum:
 class Converter:
     
     __rates    = {}
-    __measures_old = []
     __measures = []
-    __lowest     = ''
-    __lowestMul  = 0
-    __lowestRate = 0
     __ranged = []
     __isRanged = False
 
@@ -126,17 +117,9 @@ class Converter:
     def rates(self):
         return(self.__rates)
 
-    #@property
-    #def measures_old(self):
-    #    return(self.__measures_old)
-
     @property
     def measures(self):
         return(self.__measures)
-
-    #@property
-    #def lowest(self):
-    #    return(self.__lowest)
 
     @property
     def ranged(self):
@@ -168,22 +151,14 @@ class Converter:
             return self.__measures[-1]
 
         def add_cross_rate(base, cross, measureSet):
-
-            #if not base in self.__measures_old:
-            #    self.__measures_old.append(base)
             measureSet = add_measures(base, cross)
             
-            #for found in self.__measures_old:
             for found in measureSet:
                 if found == cross:
                     continue
 
                 if (found,cross) in self.__rates:
                     continue
-                
-                #HERE возможно, оптимизировать поиск? (каждый раз получаем keys для проверки, а таблица растет)
-                #if not (base, found) in self.__rates.keys():
-                #    continue
 
                 rateBase  = self.__rates[(base, cross)]
                 rateFound = self.__rates[(base, found)]
@@ -197,10 +172,6 @@ class Converter:
                         ,rate         // gcd_
                     )
 
-            #if not cross in self.__measures_old:
-            #    self.__measures_old.append(cross)
-
-
         def add_record(source, target, measureSet, multiplicity, rate):
 
             self.__rates[(source, target)] = {
@@ -209,17 +180,6 @@ class Converter:
                                             }
 
             add_cross_rate(source, target, measureSet)
-
-            #if (
-            #    self.__lowest == ''
-            #    or (
-            #            self.__lowestMul      <= multiplicity
-            #            and self.__lowestRate >= rate
-            #        )
-            #    ):
-            #        self.__lowest     = source
-            #        self.__lowestMul  = multiplicity
-            #        self.__lowestRate = rate
 
             frac = Frac(0,rate, multiplicity)
             idx = MixedNum.name_in_list(source, self.__ranged)
@@ -313,7 +273,7 @@ class Converter:
             if set_ != None:
                 measureSet = measureSet.union(set_)
 
-        lowest = self.convert_to_lowest(mixedNum, measureSet) #(lowest, unConverted)
+        lowest = self.convert_to_lowest(mixedNum, measureSet)
 
         outList = []
         for elem in lowest.list:
@@ -328,7 +288,7 @@ class Converter:
                 else:
                     rate = (elem.name, measure)
                     if not rate in self.__rates.keys():
-                        continue #raise ValueError('incorrect measures')
+                        continue
                     divider = Frac(
                             numerator = self.__rates[rate]['multiplicity']
                             ,denominator = self.__rates[rate]['rate']
@@ -344,50 +304,3 @@ class Converter:
             if not found:
                 outList.append(Elem(elem.rational, elem.name + '_unc'))
         return(MixedNum(outList))
-        
-        #OLD
-        #lowestNum = Frac() # representing lowest measure
-        #unConverted = []
-        #for elem in mixedNum.list:
-        #    if elem.name == self.__lowest:
-        #        lowestNum = lowestNum.add(
-        #            elem.rational
-        #        ).reduce()
-        #        continue
-
-        #    rate = (elem.name, self.__lowest)
-        #    if rate in self.__rates.keys():
-        #        lowestNum = lowestNum.add(
-        #            elem.rational.mul(
-        #                Frac(
-        #                    numerator = self.__rates[rate]['rate']
-        #                    ,denominator = self.__rates[rate]['multiplicity']
-        #                )
-        #            )
-        #        ).reduce()
-        #    else:
-        #        unConverted.append(elem)
-
-        #outList = []
-        #idxLast = len(measures) - 1
-        #for idx in range(idxLast + 1):
-        #    measure = measures[idx]
-        #    if measure == self.__lowest:
-        #        divider = Frac(1)
-        #    else:
-        #        rate = (self.__lowest, measure)
-        #        if not rate in self.__rates.keys():
-        #            raise ValueError('incorrect measures')
-        #        divider = Frac(
-        #                numerator = self.__rates[rate]['multiplicity']
-        #                ,denominator = self.__rates[rate]['rate']
-        #            )
-        #    frac = lowestNum.div(divider)
-        #    if idx < idxLast:
-        #        intFrac = Frac(frac.mixed().intPart)
-        #        outList.append(Elem(intFrac, measure))
-        #        lowestNum = lowestNum.sub(intFrac.mul(divider))
-        #    else:
-        #        outList.append(Elem(frac, measure))
-
-        #return(MixedNum(outList, unConverted))

@@ -129,6 +129,25 @@ class Rational:
         return self.add(other.opposite())
 
 
+    def intComp(self, other):
+        if self.isNegative != other.isNegative:
+            # if signs are not equal, 
+            # operands are not equal too,
+            # and self is lesser if negative
+            return -1 if self.isNegative else 1
+
+        if self.denominator == other.denominator:
+            num = (
+                      (self.intPart  * self.denominator  + self.numerator)
+                    - (other.intPart * other.denominator + other.numerator)
+            )
+            if num == 0: return 0
+            return self.intSign() if num > 0 else -self.intSign()
+        else:
+            frac = self.sub(other)
+            if frac.isZero(): return 0
+            return frac.intSign()
+
     def reciprocal(self):
         if self.isZero():
             raise ZeroDivisionError('Reciprocal causes division by zero')

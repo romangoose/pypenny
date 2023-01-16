@@ -19,13 +19,13 @@ class MixedNum:
 
     def __init__(self, *inLists):
         self.__list = []
-        for inList in inLists:
-            for item in inList:
-                idx = MixedNum.name_in_list(item.name, self.__list)
+        for lst in inLists:
+            for el in lst:
+                idx = MixedNum.name_in_list(el.name, self.__list)
                 if idx == None:
-                    self.__list.append(Elem(item.rational, item.name))
+                    self.__list.append(Elem(el.rational, el.name))
                 else:
-                    self.__list[idx] = Elem(self.__list[idx].rational.add(item.rational), item.name)
+                    self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), el.name)
 
     @property
     def list(self):
@@ -33,85 +33,93 @@ class MixedNum:
 
     def rationals(self):
         outList = []
-        for elem in self.__list:
-            outList.append(elem.rational)
+        for el in self.__list:
+            outList.append(el.rational)
         return outList
 
     def names(self):
         outList = []
-        for elem in self.__list:
-            outList.append(elem.name)
+        for el in self.__list:
+            outList.append(el.name)
         return outList
 
     def get_elem_by_name(self, inName):
-        for elem in self.__list:
-            if elem.name == inName:
-                return elem
+        for el in self.__list:
+            if el.name == inName:
+                return el
         return None
 	
     def compose(self, *others):
+        """union (with sum) lists of entering MixedNumbers"""
         outLists = []
         outLists.append(self.__list)
-        for mNum in others:
-            outLists.append(mNum.list)
+        for mxNum in others:
+            outLists.append(mxNum.list)
         return(MixedNum(*outLists))
 
     def pack(self):
+        """remove zero-elements"""
         outList = []
-        for item in self.list:
-            if not item.rational.isZero():
-                outList.append(Elem(item.rational, item.name))
+        for el in self.list:
+            if not el.rational.isZero():
+                outList.append(Elem(el.rational, el.name))
         return(MixedNum(outList))
 
     def with_rationals(self, func, pars=None):
+        """implement function to rational part of MixedNumber elements"""
         outList = []
-        for item in self.list:
+        for el in self.list:
             if pars == None:
-                outList.append(Elem(func(item.rational), item.name))
+                outList.append(Elem(func(el.rational), el.name))
             else:
-                outList.append(Elem(func(item.rational,pars), item.name))
+                outList.append(Elem(func(el.rational,pars), el.name))
         return(MixedNum(outList))
 
     def times(self, other, converter):
+        """Mx/Mx division with remainder"""
+        # вычисляем, сколько раз (м.б. дробью) встречается делитель в делимом, неровный излишек - в остаток
         measureSet = set()
-        for set_ in converter.measures:
-            measureSet = measureSet.union(set_)
+        for mSt in converter.measures:
+            measureSet = measureSet.union(mSt)
 
-        lowestSelf  = converter.convert_to_lowest(self, measureSet).pack()
-        lowestOther = converter.convert_to_lowest(other, measureSet).pack()
-        if len(lowestOther.__list) == 0:
+        lwSelf  = converter.convert_to_lowest(self, measureSet).pack()
+        lwOther = converter.convert_to_lowest(other, measureSet).pack()
+        if len(lwOther.__list) == 0:
             raise ZeroDivisionError('division by zero')
 
-        minimalDividend = None
-        for name_ in lowestOther.names():
-            if name_ in lowestSelf.names():
-                elemSelf  = lowestSelf.get_elem_by_name(name_)
-                elemOther = lowestOther.get_elem_by_name(name_)
-                dividend = elemSelf.rational.div(elemOther.rational).reduce()
-                if (minimalDividend == None) or (dividend.intComp(minimalDividend) < 0):
-                    minimalDividend = Frac(**dividend.dict())
+        # вычисляем минимальное частное среди пар операндов с совпадающими единицами
+        minQuotient = None
+        for measure in lwOther.names():
+            if measure in lwSelf.names():
+                elSelf  = lwSelf.get_elem_by_name(measure)
+                elOther = lwOther.get_elem_by_name(measure)
+                qoutient = elSelf.rational.div(elOther.rational).reduce()
+                if (minQuotient == None) or (qoutient.intComp(minQuotient) < 0):
+                    minQuotient = Frac(**qoutient.dict())
             else:
-                minimalDividend = Frac()
+                # если в смешанном делителе есть единица, не входящая в состав делимого
+                # то делимое по определению содержит ноль раз делителя
+                minQuotient = Frac()
                 break
-        #вычитаем из делимого делитель, умноженный на рассчитанный минимальный делитель
-        remainder = self.compose(other.with_rationals(Frac.mul, minimalDividend).with_rationals(Frac.opposite))
+        # вычитаем из делимого делитель, умноженный на найденное минимальное частное
+        remainder = self.compose(other.with_rationals(Frac.mul, minQuotient).with_rationals(Frac.opposite))
 
-        return(minimalDividend, remainder)
+        return(minQuotient, remainder)
 
     @staticmethod
-    def name_in_list(name, list):
-        for idx in range(len(list)):
-            if list[idx].name == name:
+    def name_in_list(inName, inList):
+        for idx in range(len(inList)):
+            if inList[idx].name == inName:
                 return idx
         return None
 
 
 class Converter:
     
-    __rates    = {}
-    __measures = []
-    __ranged = []
-    __isRanged = False
+    __rates    = {}    # list of dictionaries, contains rates to convert oone measure to another
+    __measures = []    # list of sets, every set contains "line" (unordered) of measures of one context
+    __ranged   = []    # ranged (sorted from "minimal" to "maximal") list of measures (all-in-one)
+    __isRanged = False # True, if ranged was really sorted. When rate are modifyed, sets to False
 
     @property
     def rates(self):
@@ -126,48 +134,48 @@ class Converter:
         return(self.__ranged)
 
     def get_measureSet(self, inMeasure):
-        for elem in self.__measures:
-            if inMeasure in elem:
-                return elem
+        for el in self.__measures:
+            if inMeasure in el:
+                return el
         return None
 
     def add_rate(self, source, target, multiplicity, rate):
 
         #inner functions
-        def add_measures(*inMeasures):
+        def update_measures(*inMeasures):
             outList = []
-            currSet = {*inMeasures}
-            for elem in self.__measures:
+            crSet = {*inMeasures}
+            for mSt in self.__measures:
                 found = False
-                for inMeasure in inMeasures:
-                    if inMeasure in elem:
+                for measure in inMeasures:
+                    if measure in mSt:
                         found = True
-                        currSet = currSet.union(elem)
+                        crSet = crSet.union(mSt)
                         break
                 if not found:
-                    outList.append(elem)
-            outList.append(currSet)
+                    outList.append(mSt)
+            outList.append(crSet)
             self.__measures = outList
             return self.__measures[-1]
 
         def add_cross_rate(base, cross, measureSet):
-            measureSet = add_measures(base, cross)
+            #measureSet = update_measures(base, cross)
             
-            for found in measureSet:
-                if found == cross:
+            for msreFound in measureSet:
+                if msreFound == cross:
                     continue
 
-                if (found,cross) in self.__rates:
+                if (msreFound,cross) in self.__rates:
                     continue
 
                 rateBase  = self.__rates[(base, cross)]
-                rateFound = self.__rates[(base, found)]
+                rateFound = self.__rates[(base, msreFound)]
 
                 multiplicity = rateFound['rate']         * rateBase['multiplicity']
                 rate         = rateFound['multiplicity'] * rateBase['rate']
                 gcd_ = Frac.gcd(multiplicity, rate)
                 add_record(
-                    found, cross, measureSet
+                    msreFound, cross, measureSet
                         ,multiplicity // gcd_
                         ,rate         // gcd_
                     )
@@ -209,15 +217,15 @@ class Converter:
 
         # multiplicity and rate may be a fractions
         # but we must reduce they to integer
-        commonMultiplicator = Frac(multiplicity.denominator * rate.denominator)
+        commonMult = Frac(multiplicity.denominator * rate.denominator)
         
-        multiplicity = multiplicity.mul(commonMultiplicator).simple()
+        multiplicity = multiplicity.mul(commonMult).simple()
         multiplicity = multiplicity.numerator // multiplicity.denominator
         
-        rate = rate.mul(commonMultiplicator).simple()
+        rate = rate.mul(commonMult).simple()
         rate = rate.numerator // rate.denominator
 
-        measureSet = add_measures(source, target)
+        measureSet = update_measures(source, target)
         return (add_record(source, target, measureSet, multiplicity, rate))
 
     def convert_to_lowest(self, mixedNum, measureSet):
@@ -234,24 +242,24 @@ class Converter:
 
         lowest      = []
         unConverted = []
-        for elem in mixedNum.list:
-            rateFound = False
+        for el in mixedNum.list:
+            found = False
 
-            if elem.name in measureSet:
+            if el.name in measureSet:
                 for base in self.__ranged:
                     #we begins from lowest measure
-                    if elem.name == base.name:
+                    if el.name == base.name:
                         #the same measure
-                        rateFound = True
-                        lowest.append(Elem(elem.rational, base.name))
+                        found = True
+                        lowest.append(Elem(el.rational, base.name))
                         break
 
-                    rate = (elem.name, base.name)
+                    rate = (el.name, base.name)
                     if rate in self.__rates.keys():
-                        rateFound = True
+                        found = True
                         lowest.append(
                             Elem(
-                                elem.rational.mul(
+                                el.rational.mul(
                                     Frac(
                                         numerator = self.__rates[rate]['rate']
                                         ,denominator = self.__rates[rate]['multiplicity']
@@ -261,46 +269,48 @@ class Converter:
                             )
                         )
                         break
-            if not rateFound:
-                unConverted.append(elem)
+            if not found:
+                unConverted.append(el)
         return(MixedNum(lowest, unConverted))
 
     def convert(self, mixedNum, *measures):
 
         measureSet = set()
         for measure in measures:
-            set_ = self.get_measureSet(measure)
-            if set_ != None:
-                measureSet = measureSet.union(set_)
+            mSt = self.get_measureSet(measure)
+            if mSt != None:
+                measureSet = measureSet.union(mSt)
 
         lowest = self.convert_to_lowest(mixedNum, measureSet)
 
         outList = []
-        for elem in lowest.list:
+        for el in lowest.list:
             measuresEOF = len(measures) - 1
-            lowestNum = Frac(**elem.rational.dict())
+            remainder = Frac(**el.rational.dict())
             found = False
-            for idx in range(measuresEOF + 1):
-                measure = measures[idx]
-                if measure == elem.name:
-                    divider = Frac(1)
+
+            idx = -1
+            for measure in measures:
+                idx = idx + 1
+                if measure == el.name:
+                    divisor = Frac(1)
                     found = True
                 else:
-                    rate = (elem.name, measure)
+                    rate = (el.name, measure)
                     if not rate in self.__rates.keys():
                         continue
-                    divider = Frac(
+                    divisor = Frac(
                             numerator = self.__rates[rate]['multiplicity']
                             ,denominator = self.__rates[rate]['rate']
                         )
                     found = True
-                frac = lowestNum.div(divider)
+                qoutient = remainder.div(divisor)
                 if idx < measuresEOF:
-                    intFrac = Frac(frac.mixed().intPart)
-                    outList.append(Elem(intFrac, measure))
-                    lowestNum = lowestNum.sub(intFrac.mul(divider))
+                    intQuotient = Frac(qoutient.mixed().intPart)
+                    outList.append(Elem(intQuotient, measure))
+                    remainder = remainder.sub(intQuotient.mul(divisor))
                 else:
-                    outList.append(Elem(frac, measure))
+                    outList.append(Elem(qoutient, measure))
             if not found:
-                outList.append(Elem(elem.rational, elem.name + '_unc'))
+                outList.append(Elem(el.rational, el.name)) #debug + '_unc'))
         return(MixedNum(outList))

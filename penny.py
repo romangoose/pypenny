@@ -3,26 +3,71 @@
 
 from sys import argv as sysArgv
 
-#from simpleini import SimpleIni as Ini
-#from simpletab import SimpleTab as Tab
+from simpleini import SimpleIni as Ini
+from simpletab import SimpleTab as Tab
 import mixednum as MNum
-#from ratiostr import RatioString as FStr
+from rationals import Rational as Frac
+from mixedstr import MixedString as MStr
 
 class main:
 
     __batch = None
-
-    __sprComm = '#'
 
     __msgStart = '''Mixed number calculator demo started. Type "help" for help. Type "exit" for Exit'''
 
     __msgHelp = '''A simple demo mixed number calculator. Contains one calculating register.
     '''
 
-    def show_help(self):
+    def show_help(self, pars = None):
+        """HELP HELP MESSAGE"""
         print(self.__msgHelp)
 
-    def do_invert(self):
+    def read_IO_settings(self, fileName):
+        """FORMAT HELP MESSAGE"""
+
+        __sprComm = '#'
+        __sprVal  = "="
+        
+        mIni = Ini({'sprFld' : None, 'sprInt' : None, 'sprFrac' : None})
+        fileName = fileName.strip()
+        try:
+            mIni.read_from_file(fileName, __sprComm, __sprVal)
+        except FileNotFoundError as err:
+            print('Settings file not foud: ', fileName, ', format was not changed')
+            return False
+        
+        if not MStr.set_separators(mIni['sprFld'], mIni['sprInt'] ,mIni['sprFrac']):
+            print('Incorrect separators, format was not changed')
+            return False
+            
+        return True
+
+    def read_rates(self, fileName):
+        """RATES HELP MESSAGE"""
+
+        __sprComm = '#'
+        __sprFld  = ";"
+
+        tab = Tab()
+        try:
+            tab.read_from_file(fileName, __sprComm, __sprFld)
+        except FileNotFoundError as err:
+            print('Rates file not foud: ', fileName)
+            return False
+
+        for rowIdx in range(tab.rows):
+            row = tab.get_row(rowIdx)
+            if not self.__converter.add_rate(
+                    row['Source']
+                    ,row['Target']
+                    ,MStr.from_string(row['Multiplicity']).rationals()[0]
+                    ,MStr.from_string(row['Rate']).rationals()[0]
+                ):
+                print('err with ', row['Source'],', ', row['Target'])
+        return True
+
+
+    def do_invert(self, pars = None):
         pass
     '''
         try:
@@ -33,46 +78,55 @@ class main:
         self.show_output('inv')
     '''
 
-    def do_reduce(self):
+    def do_reduce(self, pars = None):
         '''
         self.__register = self.__register.reduce()
         self.show_output('reduce')
         '''
 
     __methods = {
-                'HELP'    : show_help
-                ,'INV'    : do_invert
-                ,'REDUCE' : do_reduce
-                }
-    __synMethods = {
-                'HELP'    : 'HELP'
-                ,'ПОМОЩЬ' : 'HELP'
-                ,'EXIT'   : 'EXIT'
-                ,'ВЫХОД'  : 'EXIT'
-                ##,'INV'    : 'INV'
-                ##,'ИНВ'    : 'INV'
-                ##,'REDUCE' : 'REDUCE'
-                ##,'СОКР'   : 'REDUCE'
-               }
-    __methodBreak = 'EXIT'
+        'HELP'    : show_help
+        ,'FORMAT' : read_IO_settings
+        ,'RATES'  : read_rates
+
+        ##,'INV'    : do_invert
+        ##,'REDUCE' : do_reduce
+    }
+    
+    __parHelp = '?'
+
+    __mthSynonyms = {
+        'HELP'    : 'HELP'
+        ,'ПОМОЩЬ' : 'HELP'
+        ,'EXIT'   : 'EXIT'
+        ,'ВЫХОД'  : 'EXIT'
+        ,'FORM'   : 'FORMAT'
+        ,'ФОРМ'   : 'FORMAT'
+        ,'КУРС'   : 'RATES'
+        ,'RATE'   : 'RATES'
+        ##,'REDUCE' : 'REDUCE'
+        ##,'СОКР'   : 'REDUCE'
+    }
+    __mthBreak = 'EXIT'
 
     def evaluate(self, instr):
-        pass
-    '''
+    
         op = instr[0] if len(instr) > 0 else ' '
         if not op in '+-*/=':
             print('"' + instr + '" is incorrect')
             return False
 
         sInp = instr[1:]
-        fInp = FStr.from_string(sInp.strip())[0]
+        mInp = MStr.from_string(sInp.strip())
 
         if op == '=':
-            self.__register = fInp
+            self.__register = mInp
+        
         elif op == '+':
-            self.__register = self.__register.add(fInp)
+            self.__register = self.__register.compose(mInp)
         elif op == '-':
-            self.__register = self.__register.sub(fInp)
+            self.__register = self.__register.compose(mInp.with_rationals(Frac.opposite))
+        '''
         elif op == '*':
             self.__register = self.__register.mul(fInp)
         elif op == '/':
@@ -81,31 +135,22 @@ class main:
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
+        '''
 
-
-        self.__register = self.__register.mixed()
-        self.show_output(op,fInp)
+        #self.__register = self.__register.mixed()
+        self.show_output(op,mInp)
         return True
-    '''
 
-    def show_output(self, op = '=>',curr = None):
-        pass
-    '''
-        print(
-            FStr.to_string(self.__archReg)
-            + ' '  + op
-            + ('' if curr == None else ' '  + FStr.to_string(curr))
-            + ' = ' + FStr.to_string(self.__register)
-            + ' => ' + str(self.__register.decimal())
-        )
-    '''
+    def show_output(self, op = '=>', opnd = None):
+        print(MStr.to_string(self.__register))
 
     def init(self):
         if len(sysArgv) > 1:
             self.__batch = sysArgv[1]
 
-        self.__register = MNum.MixedNum() #put Zero in current register
-        self.__archReg  = MNum.MixedNum() #put Zero in 'archive' register
+        self.__register  = MNum.MixedNum() #put Zero in current register
+        self.__archReg   = MNum.MixedNum() #put Zero in 'archive' register
+        self.__converter = MNum.Converter()
 
         print(self.__msgStart)
 
@@ -113,6 +158,9 @@ class main:
 
     def read_batch(self):
         """reads commands from batch file"""
+
+        __sprComm = '#'
+
         if isinstance(self.__batch, str):
             try:
                 with open(self.__batch,'r',encoding='utf-8-sig') as mFile:
@@ -122,7 +170,7 @@ class main:
                             break
                         
                         # очищаем строку от комментария
-                        line = line.split(self.__sprComm)[0].strip()
+                        line = line.split(__sprComm)[0].strip()
                         if line == '':
                             continue
                         
@@ -138,21 +186,41 @@ class main:
     def work(self):
         """main operating cycle"""
         while True:
+            self.__archReg = self.__register #put current register to archive
             instr = input('>>').strip()
             if not self.process(instr):
                 break
 
     def process(self, inCommand):
-        """executes one command"""
-        upper = inCommand.upper()
-        if upper in self.__synMethods:
-            method_ = self.__synMethods[upper]
-            if method_ == self.__methodBreak:
+        """executes one command, returns False if Exit was called"""
+
+        # предполагаем, что первое слово - метод, остальное - параметр
+        posSpace = inCommand.find(' ')
+        if posSpace > 0:
+            command = inCommand[0:posSpace]
+            par     = inCommand[posSpace + 1:]
+        else:
+            command = inCommand
+            par     = ''
+
+        upper = command.upper()
+        mth = self.__mthSynonyms.get(upper)
+        if mth:
+            if par == self.__parHelp:
+                topic = self.__methods[mth].__doc__
+                if topic:
+                    print(topic)
+                else:
+                    print('No help topic about ', command)
+                return True
+
+            if mth == self.__mthBreak:
                 return False
 
-            self.__methods[method_](self)
+            self.__methods[mth](self, par)
             return True
 
+        # все, что не метод - пробуем вычислить
         self.evaluate(inCommand)
         return True
         

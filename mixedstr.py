@@ -30,8 +30,11 @@ class MixedString(FStr):
     def to_string(cls, mixNum) -> str:
         outList = []
         for elem in mixNum.list:
-            outList.append(super().to_string(elem.rational) + ' ' + elem.name)
-
+            outList.append('{frac}{name}'.format(
+                frac  = super().to_string(elem.rational)
+                ,name = (' ' + elem.name if elem.name else '')
+                )
+            )
         return (cls.__sprFld + ' ').join(outList)
 
     @classmethod

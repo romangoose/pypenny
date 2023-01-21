@@ -116,7 +116,7 @@ class MixedNum:
 
 class Converter:
     
-    __rates    = {}    # list of dictionaries, contains rates to convert oone measure to another
+    __rates    = {}    # list of dictionaries, contains rates to convert one measure to another
     __measures = []    # list of sets, every set contains "line" (unordered) of measures of one context
     __ranged   = []    # ranged (sorted from "minimal" to "maximal") list of measures (all-in-one)
     __isRanged = False # True, if ranged was really sorted. When rate are modifyed, sets to False

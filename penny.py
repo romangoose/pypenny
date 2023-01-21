@@ -11,6 +11,8 @@ from mixedstr import MixedString as MStr
 
 class main:
 
+    __sprFld = ', '
+
     __batch = None
 
     __msgStart = '''Mixed number calculator demo started. Type "help" for help. Type "exit" for Exit'''
@@ -39,7 +41,9 @@ class main:
         if not MStr.set_separators(mIni['sprFld'], mIni['sprInt'] ,mIni['sprFrac']):
             print('Incorrect separators, format was not changed')
             return False
-            
+
+        self.__sprFld = mIni['sprFld']
+
         return True
 
     def read_rates(self, fileName):
@@ -66,31 +70,42 @@ class main:
                 print('err with ', row['Source'],', ', row['Target'])
         return True
 
+    def show_decimal(self, pars = None):
+        """показывает текущее число в десятичном виде (само число не изменяется)"""
+        outList = []
+        for elem in self.__register.list:
+            outList.append('{dec}{name}'.format(
+                dec  = Frac.decimal(elem.rational)
+                ,name = (elem.name + ': ' if elem.name else '')
+                )
+            )
+        print ((' ' + self.__sprFld).join(outList))
 
-    def do_invert(self, pars = None):
-        pass
-    '''
-        try:
-            self.__register = self.__register.reciprocal()
-        except ZeroDivisionError as err:
-            print(str(err))
-            return False
-        self.show_output('inv')
-    '''
+    def clear_registers(self, pars = None):
+        """очищает регистры и таблицу курсов"""
 
-    def do_reduce(self, pars = None):
-        '''
-        self.__register = self.__register.reduce()
-        self.show_output('reduce')
-        '''
+        self.__register  = MNum.MixedNum() #put Zero in current register
+        self.__archReg   = MNum.MixedNum() #put Zero in 'archive' register
+        self.__converter = MNum.Converter()
+
+    def show_convert(self, strMeasures):
+        """конвертирует текущее число в заданные единицы (число не изменяется)"""
+        measures = strMeasures.split(self.__sprFld)
+        for el in measures:
+            el = el.strip()
+        mNum = self.normalize(self.__converter.convert(self.__register, *measures))
+        print(MStr.to_string(mNum))
 
     __methods = {
-        'HELP'    : show_help
-        ,'FORMAT' : read_IO_settings
-        ,'RATES'  : read_rates
+        'HELP'     : show_help
+        ,'FORMAT'  : read_IO_settings
+        ,'RATES'   : read_rates
+        ,'CLEAR'   : clear_registers
+        ,'CONVERT' : show_convert
 
-        ##,'INV'    : do_invert
-        ##,'REDUCE' : do_reduce
+        ,'TEST':show_rates
+
+        ,'DECIMAL' : show_decimal
     }
     
     __parHelp = '?'
@@ -102,19 +117,26 @@ class main:
         ,'ВЫХОД'  : 'EXIT'
         ,'FORM'   : 'FORMAT'
         ,'ФОРМ'   : 'FORMAT'
-        ,'КУРС'   : 'RATES'
         ,'RATE'   : 'RATES'
-        ##,'REDUCE' : 'REDUCE'
-        ##,'СОКР'   : 'REDUCE'
+        ,'КУРС'   : 'RATES'
+        ,'CLR'    : 'CLEAR'
+        ,'ЧИСТ'   : 'CLEAR'
+        ,'CONV'   : 'CONVERT'
+        ,'КОНВ'   : 'CONVERT'
+
+        ,'DEC'    : 'DECIMAL'
+        ,'ДЕС'    : 'DECIMAL'
     }
     __mthBreak = 'EXIT'
+
+    @staticmethod
+    def isRegular(inMNum):
+        measures = inMNum.names()
+        return(len(measures) == 1 and not measures[0].strip())
 
     def evaluate(self, instr):
     
         op = instr[0] if len(instr) > 0 else ' '
-        if not op in '+-*/=':
-            print('"' + instr + '" is incorrect')
-            return False
 
         sInp = instr[1:]
         mInp = MStr.from_string(sInp.strip())
@@ -126,20 +148,45 @@ class main:
             self.__register = self.__register.compose(mInp)
         elif op == '-':
             self.__register = self.__register.compose(mInp.with_rationals(Frac.opposite))
-        '''
         elif op == '*':
-            self.__register = self.__register.mul(fInp)
-        elif op == '/':
+            if self.isRegular(mInp):
+                multiplicand = self.__register
+                multiplier   = mInp
+            elif self.isRegular(self.__register):
+                multiplicand = mInp
+                multiplier   = self.__register
+            else:
+                print('Перемножение двух смешанных чисел не определено')
+                return False
+            #factor[0].Rational
+            self.__register = multiplicand.with_rationals(Frac.mul, multiplier.list[0].rational)
+        elif op == '/' or op == '%':
             try:
-                self.__register = self.__register.div(fInp)
+                if self.isRegular(mInp):
+                    self.__register = self.__register.with_rationals(Frac.mul, mInp.list[0].rational.reciprocal())
+                else:
+                    result = self.__register.times(mInp, self.__converter)
+                    numPart  = MNum.MixedNum((MNum.Elem(result[0]),))
+                    reminder = result[1]
+                    if op == '/':
+                        print ('Остаток: ', MStr.to_string(reminder))
+                        self.__register = numPart
+                    else:    
+                        print ('Численный результат: ', MStr.to_string(numPart))
+                        self.__register = reminder
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
-        '''
+        else:
+            print('"' + instr + '" is incorrect')
+            return False
 
-        #self.__register = self.__register.mixed()
+        self.__register = self.normalize(self.__register) #.with_rationals(Frac.mixed).with_rationals(Frac.reduce).pack()
         self.show_output(op,mInp)
         return True
+
+    def normalize(self, mNum):
+        return(mNum.with_rationals(Frac.mixed).with_rationals(Frac.reduce).pack())
 
     def show_output(self, op = '=>', opnd = None):
         print(MStr.to_string(self.__register))
@@ -147,13 +194,8 @@ class main:
     def init(self):
         if len(sysArgv) > 1:
             self.__batch = sysArgv[1]
-
-        self.__register  = MNum.MixedNum() #put Zero in current register
-        self.__archReg   = MNum.MixedNum() #put Zero in 'archive' register
-        self.__converter = MNum.Converter()
-
+        self.clear_registers()
         print(self.__msgStart)
-
         return True
 
     def read_batch(self):
@@ -223,7 +265,7 @@ class main:
         # все, что не метод - пробуем вычислить
         self.evaluate(inCommand)
         return True
-        
+
 
 main_ = main()
 if main_.init():

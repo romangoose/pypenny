@@ -1,5 +1,11 @@
-# Версия 2022-12-17
-# Лицензия CC0 https://creativecommons.org/publicdomain/zero/1.0/deed.ru
+# Any copyright is dedicated to the Public Domain.
+# https://creativecommons.org/publicdomain/zero/1.0/
+# ===================== OR =========================
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Версия 2023-01-21
 
 from rationals import Rational as Frac
 
@@ -38,12 +44,13 @@ class RatioString:
 
     @classmethod
     def to_string(cls, frac) -> str:
-        #a = f'{self.__negasign + " " if self.isNegative else ""}{str(self.intPart)}{self.__sprInt}{str(self.numerator)}{self.__sprFrac}{str(self.denominator)}'
-        return (
-                 (cls.__negasign + ' ' if frac.isNegative else '')
-                + str(frac.intPart)   + cls.__sprInt
-                + str(frac.numerator) + cls.__sprFrac + str(frac.denominator)
-                )
+        return(
+            '{neg}{int}{sprI}{num}{sprF}{den}'.format(
+                int = str(frac.intPart), num = str(frac.numerator), den = str(frac.denominator)
+                ,neg = (cls.__negasign if frac.isNegative else '')
+                ,sprI = cls.__sprInt, sprF = cls.__sprFrac
+            )
+        )
 
     # parse fraction from string like '-I.N/D', where ALL LAST parts of string (including seperstors) can be empty
     # returns tuple fraction, tail-of-string
@@ -66,15 +73,16 @@ class RatioString:
 
         currKey  = 'intPart' #constructing intPart at first (think so)
         switches = cls.__sprInt + cls.__sprFrac #if meet switch, change constructing part
-        lenstr = len(instr)
-        for i in range(lenstr):
+        wasTail = False
+        for i in range(len(instr)):
             symb = instr[i]
             if symb.isdigit():
                 parts[currKey] = parts[currKey] + symb
                 continue
 
-            # non-numeral symbol
+            # undefined symbol
             if not symb in switches:
+                wasTail = True
                 break
 
             # it's a switch
@@ -106,5 +114,5 @@ class RatioString:
         except ValueError as err:
             raise ValueError('error while parsing string to rational: ' + str(err))
 
-        return(mFrac,  instr[i:] if i < (lenstr - 1) else '')
+        return(mFrac,  instr[i:] if wasTail else '')
         

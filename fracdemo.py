@@ -1,5 +1,7 @@
-# Версия 2023-01-03
-# Лицензия CC0 https://creativecommons.org/publicdomain/zero/1.0/deed.ru
+# Any copyright is dedicated to the Public Domain.
+# https://creativecommons.org/publicdomain/zero/1.0/
+
+# Версия 2023-01-21
 
 from sys import argv as sysArgv
 
@@ -75,7 +77,7 @@ Values must have 1-symbol length and must not match.'''
     def evaluate(self, instr):
         op = instr[0] if len(instr) > 0 else ' '
         if not op in '+-*/=':
-            print('"' + instr + '" is incorrect')
+            print('"{0}" is incorrect'.format(instr))
             return False
 
         sInp = instr[1:]
@@ -101,13 +103,15 @@ Values must have 1-symbol length and must not match.'''
         self.show_output(op,fInp)
         return True
 
-    def show_output(self, op = '=>',curr = None):
+    def show_output(self, op = '=>',operand = None):
         print(
-            FStr.to_string(self.__archReg)
-            + ' '  + op
-            + ('' if curr == None else ' '  + FStr.to_string(curr))
-            + ' = ' + FStr.to_string(self.__register)
-            + ' => ' + str(self.__register.decimal())
+            '{arch} {op}{opnd} = {result} => {dec}'.format(
+                arch    = FStr.to_string(self.__archReg)
+                ,op     = op
+                ,opnd   = ('' if operand == None else ' '  + FStr.to_string(operand))
+                ,result = FStr.to_string(self.__register)
+                ,dec    = str(self.__register.decimal())
+            )
         )
 
     def work(self):

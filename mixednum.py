@@ -277,7 +277,11 @@ class Converter:
                 unConverted.append(el)
         return(MixedNum(lowest, unConverted))
 
-    def convert(self, mixedNum, *measures):
+    def convert(self, mixedNum, *inMeasures):
+
+        measures = []
+        for measure in inMeasures:
+            measures.append(measure.strip())
 
         measureSet = set()
         for measure in measures:
@@ -288,19 +292,20 @@ class Converter:
         lowest = self.convert_to_lowest(mixedNum, measureSet)
 
         outList = []
+        remainders = []
+        quotients  = []
         for el in lowest.list:
-            measuresEOF = len(measures) - 1
-            remainder = Frac(**el.rational.dict())
-            found = False
+            remainders.append(el)
+            quotients.append(el)
 
-            idx = -1
-            for measure in measures:
-                idx = idx + 1
-                if measure == el.name:
+        for measure in measures:
+            found = False
+            for idx in range(len(remainders)):
+                if measure == remainders[idx].name:
                     divisor = Frac(1)
                     found = True
                 else:
-                    rate = (el.name, measure)
+                    rate = (remainders[idx].name, measure)
                     if not rate in self.__rates.keys():
                         continue
                     divisor = Frac(
@@ -308,13 +313,10 @@ class Converter:
                             ,denominator = self.__rates[rate]['rate']
                         )
                     found = True
-                qoutient = remainder.div(divisor)
-                if idx < measuresEOF:
-                    intQuotient = Frac(qoutient.mixed().intPart)
-                    outList.append(Elem(intQuotient, measure))
-                    remainder = remainder.sub(intQuotient.mul(divisor))
-                else:
-                    outList.append(Elem(qoutient, measure))
-            if not found:
-                outList.append(Elem(el.rational, el.name)) #debug + '_unc'))
-        return(MixedNum(outList).pack())
+                quotient = remainders[idx].rational.div(divisor)
+                intQuotient = Frac(quotient.mixed().intPart)
+                outList.append(Elem(intQuotient, measure))
+                remainders[idx] = Elem(remainders[idx].rational.sub(intQuotient.mul(divisor)), remainders[idx].name)
+                quotients[idx]  = Elem(quotient.sub(intQuotient), measure)
+
+        return(MixedNum(outList, quotients).pack())

@@ -23,6 +23,7 @@ class main:
     def show_help(self, pars = None):
         """HELP HELP MESSAGE"""
         print(self.__msgHelp)
+        print(self.__mthSynonyms)
 
     def read_IO_settings(self, fileName):
         """FORMAT HELP MESSAGE"""
@@ -93,10 +94,12 @@ class main:
         measures = strMeasures.split(self.__sprFld)
         for el in measures:
             el = el.strip()
-        mNum = self.normalize(self.__converter.convert(self.__register, *measures))
+        mNum = self.normalize(self.__converter.convert(self.__register, measures))
         print(MStr.to_string(mNum))
 
     def show_rates(self, pars = None):
+        print(self.__converter.rates)
+        '''
         print('Multiplicity;		Source;						Rate;			Target;')
         for key in self.__converter.rates:
             print('{mul} {source} = {rate} {target}'.format(
@@ -106,6 +109,13 @@ class main:
                 ,target = key[1]
                 )
             )
+        '''
+
+    def show_measures(self, pars = None):
+        print(self.__converter.measures)
+
+    def show_ranged(self, pars = None):
+        print(self.__converter.ranged)
     
     __methods = {
         'HELP'     : show_help
@@ -114,7 +124,9 @@ class main:
         ,'CLEAR'   : clear_registers
         ,'CONVERT' : show_convert
 
-        ,'TEST':show_rates
+        ,'RATETAB':show_rates
+        ,'MEASURES':show_measures
+        ,'RANGED':show_ranged
 
         ,'DECIMAL' : show_decimal
     }
@@ -135,8 +147,12 @@ class main:
         ,'CONV'   : 'CONVERT'
         ,'КОНВ'   : 'CONVERT'
 
-        ,'TEST':'TEST'
-        ,'ТЕСТ':'TEST'
+        ,'TAB':'RATETAB'
+        ,'ТАБ':'RATETAB'
+        ,'MSR':'MEASURES'
+        ,'ЕД':'MEASURES'
+        ,'RANG':'RANGED'
+        ,'РАНГ':'RANGED'
 
         ,'DEC'    : 'DECIMAL'
         ,'ДЕС'    : 'DECIMAL'

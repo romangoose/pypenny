@@ -106,7 +106,7 @@ class MixedNum:
 
         # конвертируем остаток в исходные единицы
         # (в делителе может присутствовать единица, отсутствующая в делимом, что может привести к неудобной форме результата)
-        remainder = converter.convert(remainder, *self.names())
+        remainder = converter.convert(remainder, self.names())
 
         return(minQuotient, remainder)
 
@@ -277,19 +277,13 @@ class Converter:
                 unConverted.append(el)
         return(MixedNum(lowest, unConverted))
 
-    def convert(self, mixedNum, *inMeasures):
+    def convert(self, mixedNum, inMeasures):
 
         measures = []
         for measure in inMeasures:
             measures.append(measure.strip())
 
-        measureSet = set()
-        for measure in measures:
-            mSt = self.get_measureSet(measure)
-            if mSt != None:
-                measureSet = measureSet.union(mSt)
-
-        lowest = self.convert_to_lowest(mixedNum, measureSet)
+        lowest = self.convert_to_lowest(mixedNum, set(measures))
 
         outList = []
         remainders = []
@@ -299,11 +293,9 @@ class Converter:
             quotients.append(el)
 
         for measure in measures:
-            found = False
             for idx in range(len(remainders)):
                 if measure == remainders[idx].name:
                     divisor = Frac(1)
-                    found = True
                 else:
                     rate = (remainders[idx].name, measure)
                     if not rate in self.__rates.keys():
@@ -312,7 +304,6 @@ class Converter:
                             numerator = self.__rates[rate]['multiplicity']
                             ,denominator = self.__rates[rate]['rate']
                         )
-                    found = True
                 quotient = remainders[idx].rational.div(divisor)
                 intQuotient = Frac(quotient.mixed().intPart)
                 outList.append(Elem(intQuotient, measure))

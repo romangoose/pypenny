@@ -96,6 +96,17 @@ class main:
         mNum = self.normalize(self.__converter.convert(self.__register, *measures))
         print(MStr.to_string(mNum))
 
+    def show_rates(self, pars = None):
+        print('Multiplicity;		Source;						Rate;			Target;')
+        for key in self.__converter.rates:
+            print('{mul} {source} = {rate} {target}'.format(
+                mul     = self.__converter.rates[key]['multiplicity']
+                ,source = key[0]
+                ,rate   = self.__converter.rates[key]['rate']
+                ,target = key[1]
+                )
+            )
+    
     __methods = {
         'HELP'     : show_help
         ,'FORMAT'  : read_IO_settings
@@ -123,6 +134,9 @@ class main:
         ,'ЧИСТ'   : 'CLEAR'
         ,'CONV'   : 'CONVERT'
         ,'КОНВ'   : 'CONVERT'
+
+        ,'TEST':'TEST'
+        ,'ТЕСТ':'TEST'
 
         ,'DEC'    : 'DECIMAL'
         ,'ДЕС'    : 'DECIMAL'
@@ -163,17 +177,19 @@ class main:
         elif op == '/' or op == '%':
             try:
                 if self.isRegular(mInp):
-                    self.__register = self.__register.with_rationals(Frac.mul, mInp.list[0].rational.reciprocal())
+                    numPart  = self.__register.with_rationals(Frac.mul, mInp.list[0].rational.reciprocal())
+                    remainder = MNum.MixedNum((MNum.Elem(Frac()),))
                 else:
                     result = self.__register.times(mInp, self.__converter)
                     numPart  = MNum.MixedNum((MNum.Elem(result[0]),))
-                    reminder = result[1]
-                    if op == '/':
-                        print ('Остаток: ', MStr.to_string(reminder))
-                        self.__register = numPart
-                    else:    
-                        print ('Численный результат: ', MStr.to_string(numPart))
-                        self.__register = reminder
+                    remainder = result[1]
+
+                if op == '/':
+                    print ('Остаток: ', MStr.to_string(self.normalize(remainder)))
+                    self.__register = numPart
+                else:    
+                    print ('Результат: ', MStr.to_string(self.normalize(numPart)))
+                    self.__register = remainder
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
@@ -181,7 +197,7 @@ class main:
             print('"' + instr + '" is incorrect')
             return False
 
-        self.__register = self.normalize(self.__register) #.with_rationals(Frac.mixed).with_rationals(Frac.reduce).pack()
+        self.__register = self.normalize(self.__register)
         self.show_output(op,mInp)
         return True
 

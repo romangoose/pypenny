@@ -35,6 +35,8 @@ class MixedString(FStr):
                 ,name = (' ' + elem.name if elem.name else '')
                 )
             )
+        if not len(outList):
+            outList.append('0')
         return (cls.__sprFld + ' ').join(outList)
 
     @classmethod

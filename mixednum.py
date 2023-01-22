@@ -104,6 +104,10 @@ class MixedNum:
         # вычитаем из делимого делитель, умноженный на найденное минимальное частное
         remainder = self.compose(other.with_rationals(Frac.mul, minQuotient).with_rationals(Frac.opposite))
 
+        # конвертируем остаток в исходные единицы
+        # (в делителе может присутствовать единица, отсутствующая в делимом, что может привести к неудобной форме результата)
+        remainder = converter.convert(remainder, *self.names())
+
         return(minQuotient, remainder)
 
     @staticmethod
@@ -313,4 +317,4 @@ class Converter:
                     outList.append(Elem(qoutient, measure))
             if not found:
                 outList.append(Elem(el.rational, el.name)) #debug + '_unc'))
-        return(MixedNum(outList))
+        return(MixedNum(outList).pack())

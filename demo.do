@@ -1,3 +1,3 @@
 Форм ./conf/frac.cfg
-Курс ./conf/time.tab
+Курс ./conf/demo.tab
 #exit

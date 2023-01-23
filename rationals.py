@@ -120,6 +120,15 @@ class Rational:
             ,not self.isNegative # isNegative
         )
 
+    def abs(self):
+        """absolute value"""
+        return Rational(
+            self.intPart         # intPart
+            ,self.numerator      # numerator
+            ,self.denominator    # denominator
+            ,False                # isNegative
+        )
+
     def add(self, other):
         """addition"""
         lcm_ =  Rational.lcm(self.denominator,other.denominator)

@@ -1,10 +1,13 @@
 from rationals import Rational as Frac
 
 class Elem:
-
+    """the elementary part of a mixed number: a fraction having a measure name"""
     def __init__(self, rational, name=''):
         self.__rational = rational
         self.__name = name.strip()
+
+    def __str__(self):
+        return(str({'rational':str(self.__rational), 'name':str(self.__name)}))
 
     @property
     def name(self):
@@ -16,7 +19,7 @@ class Elem:
 
 
 class MixedNum:
-
+    """list of named fractions"""
     def __init__(self, *inLists):
         self.__list = []
         for lst in inLists:
@@ -27,17 +30,22 @@ class MixedNum:
                 else:
                     self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), el.name)
 
+    def __str__(self):
+        return(str(self.__list))
+
     @property
     def list(self):
         return(self.__list)
 
     def rationals(self):
+        """all fractions of the number"""
         outList = []
         for el in self.__list:
             outList.append(el.rational)
         return outList
 
     def names(self):
+        """all measure names of the number"""
         outList = []
         for el in self.__list:
             outList.append(el.name)
@@ -50,7 +58,16 @@ class MixedNum:
         return None
 	
     def compose(self, *others):
-        """union (with sum) lists of entering MixedNumbers"""
+        """union (with the summation  of the same-name parts) lists of entering MixedNumbers"""
+
+        """
+        In fact, both:
+            - assembling a number from elements
+            - and summation of several numbers 
+            are reduced to the compose operation.
+
+        """
+
         outLists = []
         outLists.append(self.__list)
         for mxNum in others:
@@ -66,7 +83,9 @@ class MixedNum:
         return(MixedNum(outList))
 
     def with_rationals(self, func, pars=None):
-        """implement function to rational part of MixedNumber elements"""
+        """apply a function to the rational part of the MixedNumber elements"""
+
+        """in this way it is possible, for example, to multiply (by a measureless number), reduce, etc."""
         outList = []
         for el in self.list:
             if pars == None:
@@ -119,6 +138,7 @@ class MixedNum:
 
 
 class Converter:
+    """converts one measure to another if there is a corresponding exchange rate"""
     
     __rates    = {}    # list of dictionaries, contains rates to convert one measure to another
     __measures = []    # list of sets, every set contains "line" (unordered) of measures of one context
@@ -142,6 +162,17 @@ class Converter:
             if inMeasure in el:
                 return el
         return None
+
+    @staticmethod
+    def simple_frac(numerator, denominator):
+        absN = abs(numerator)
+        absD = abs(denominator)
+        return Frac(
+            intPart = 0
+            ,numerator = absN
+            ,denominator = absD
+            ,isNegative = ((absN != numerator) != (absD != denominator))
+        )
 
     def add_rate(self, source, target, multiplicity, rate):
 
@@ -193,7 +224,7 @@ class Converter:
 
             add_cross_rate(source, target, measureSet)
 
-            frac = Frac(0,rate, multiplicity)
+            frac = self.simple_frac(rate, multiplicity)
             idx = MixedNum.name_in_list(source, self.__ranged)
             if idx == None:
                 self.__ranged.append(Elem(frac, source))
@@ -224,10 +255,10 @@ class Converter:
         commonMult = Frac(multiplicity.denominator * rate.denominator)
         
         multiplicity = multiplicity.mul(commonMult).simple()
-        multiplicity = multiplicity.numerator // multiplicity.denominator
+        multiplicity = (multiplicity.numerator // multiplicity.denominator)*multiplicity.intSign()
         
         rate = rate.mul(commonMult).simple()
-        rate = rate.numerator // rate.denominator
+        rate = (rate.numerator // rate.denominator)*rate.intSign()
 
         measureSet = update_measures(source, target)
         return (add_record(source, target, measureSet, multiplicity, rate))
@@ -264,7 +295,7 @@ class Converter:
                         lowest.append(
                             Elem(
                                 el.rational.mul(
-                                    Frac(
+                                    self.simple_frac(
                                         numerator = self.__rates[rate]['rate']
                                         ,denominator = self.__rates[rate]['multiplicity']
                                     )
@@ -276,6 +307,7 @@ class Converter:
             if not found:
                 unConverted.append(el)
         return(MixedNum(lowest, unConverted))
+
 
     def convert(self, mixedNum, inMeasures):
 
@@ -300,7 +332,7 @@ class Converter:
                     rate = (remainders[idx].name, measure)
                     if not rate in self.__rates.keys():
                         continue
-                    divisor = Frac(
+                    divisor = self.simple_frac(
                             numerator = self.__rates[rate]['multiplicity']
                             ,denominator = self.__rates[rate]['rate']
                         )

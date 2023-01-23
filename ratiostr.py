@@ -5,7 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Версия 2023-01-21
+# Версия 2023-01-23
 
 from rationals import Rational as Frac
 
@@ -52,10 +52,14 @@ class RatioString:
             )
         )
 
-    # parse fraction from string like '-I.N/D', where ALL LAST parts of string (including seperstors) can be empty
-    # returns tuple fraction, tail-of-string
+
     @classmethod
     def from_string(cls, instr):
+        """parse fraction from string like '-I.N/D', where ALL LAST parts of string (including seperstors) can be empty.
+returns tuple (fraction, tail-of-string)
+
+        """
+
         instr = instr.strip()
 
         #in the simplest case returns "zero", empty
@@ -71,16 +75,17 @@ class RatioString:
         # string parts for constructing fraction from input
         parts = {'intPart':'', 'numerator':'', 'denominator':''}
 
-        currKey  = 'intPart' #constructing intPart at first (think so)
-        switches = cls.__sprInt + cls.__sprFrac #if meet switch, change constructing part
+        currKey  = 'intPart' #first suppose that you start to collect the integer part
+        switches = cls.__sprInt + cls.__sprFrac #separators toggles input part
         wasTail = False
         for i in range(len(instr)):
             symb = instr[i]
             if symb.isdigit():
+                # digits are collected in the selected part
                 parts[currKey] = parts[currKey] + symb
                 continue
 
-            # undefined symbol
+            # undefined symbol (not digit, not switch): finishes construction
             if not symb in switches:
                 wasTail = True
                 break
@@ -92,8 +97,8 @@ class RatioString:
             else:
                 # it's sprFrac
                 if cls.__sprInt in switches:
-                    # meet sprFrac before meet sprInt
-                    # so, in fact we construct numerator, not the intPart
+                    # separator sprFrac occurs before separator sprInt
+                    # so previously the numerator was actually constructed, not the intPart
                     parts['numerator'] = parts['intPart']
                     parts['intPart']   = ''
                 
@@ -101,7 +106,7 @@ class RatioString:
                 switches = ''
 
         if switches == cls.__sprFrac:
-            # previously not find sprFrac, so it is decimal fraction
+            # sprFrac was not previously found, so it's a decimal fraction
             parts['denominator'] = '1' + '0'*len(parts['numerator'])
 
         outFrac = Frac().dict()

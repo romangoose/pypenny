@@ -7,10 +7,6 @@
 
 # Версия 2023-01-23
 
-import numbers
-import operator
-
-
 """Rational numbers (fractions)"""
 
 class Rational:
@@ -96,7 +92,7 @@ class Rational:
             ,self.denominator                                 # denominator
             ,self.isNegative                                  # isNegative
         )
-   
+
     def reduce(self):
         if self.numerator == 0:
             # simlest case: set denominator to 1
@@ -202,6 +198,18 @@ class Rational:
             raise ZeroDivisionError('Division by zero')
         return self.mul(other.reciprocal())
 
+
+    @staticmethod
+    def shorter(numerator, denominator):
+        """defines a fraction as a canonical ratio [-]A/[-]N"""
+        absN = abs(numerator)
+        absD = abs(denominator)
+        return Rational(
+            intPart = 0
+            ,numerator = absN
+            ,denominator = absD
+            ,isNegative = ((absN != numerator) != (absD != denominator))
+        )
 
     @staticmethod
     def gcd(a: int, b: int) -> int:

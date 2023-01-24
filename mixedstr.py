@@ -1,3 +1,14 @@
+# Any copyright is dedicated to the Public Domain.
+# https://creativecommons.org/publicdomain/zero/1.0/
+# ===================== OR =========================
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Версия 2023-01-24
+
+"""Convert Mixed Numbers from/to string"""
+
 from ratiostr import RatioString as FStr
 from mixednum import MixedNum, Elem
 
@@ -36,14 +47,13 @@ class MixedString(FStr):
                 )
             )
         if not len(outList):
-            outList.append('0')
+            # empty value
+            outList.append(super().to_string(super().from_string("")[0]))
         return (cls.__sprFld + ' ').join(outList)
 
     @classmethod
     def from_string(cls, instr):
         outList = []
         for strNum in instr.split(cls.__sprFld):
-            a = super().from_string(strNum)
-            #outList.append(Elem(a[1].strip(), a[0]))
             outList.append(Elem(*super().from_string(strNum)))
         return MixedNum(outList)

@@ -1,3 +1,19 @@
+# Any copyright is dedicated to the Public Domain.
+# https://creativecommons.org/publicdomain/zero/1.0/
+# ===================== OR =========================
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Версия 2023-01-24
+
+"""Mixed Number arithmetic"""
+
+"""
+here put the theory of a mixed numbers
+
+"""
+
 from rationals import Rational as Frac
 
 class Elem:
@@ -60,13 +76,13 @@ class MixedNum:
     def compose(self, *others):
         """union (with the summation  of the same-name parts) lists of entering MixedNumbers"""
 
-        """
-        In fact, both:
-            - assembling a number from elements
-            - and summation of several numbers 
-            are reduced to the compose operation.
-
-        """
+        # по факту, и конструирование числа из элементов
+        # и суммирование двух чисел - 
+        # сводятся к операции компоновки,
+        # то есть, объединению списков суммированию одноименных элементов.
+        # compose фактически явлется алиасом для конструктора класса:
+        # в конструктор передаются списки,
+        # сюда - непосредственно MixedNum
 
         outLists = []
         outLists.append(self.__list)
@@ -96,8 +112,7 @@ class MixedNum:
 
     def times(self, other, converter):
 
-        """Mx/Mx division with remainder"""
-	# calculate how many times the divisor occurs in the dividend
+        """Mx/Mx division: calculate how many times the divisor occurs in the dividend; remainder is possible"""
 
         # вычисляем, сколько раз (м.б. дробью) встречается делитель в делимом,
         # неровный излишек помещается в остаток
@@ -123,16 +138,18 @@ class MixedNum:
         # либо только противоположные)
 
 
+        # подготавливаем общий сет всех единиц 
         measureSet = set()
         for mSt in converter.measures:
             measureSet = measureSet.union(mSt)
 
+        # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
         lwSelf  = converter.convert_to_lowest(self, measureSet).pack()
         lwOther = converter.convert_to_lowest(other, measureSet).pack()
         if len(lwOther.__list) == 0:
             raise ZeroDivisionError('division by zero')
 
-        # вычисляем минимальное частное среди пар операндов с совпадающими единицами
+        # вычисляем минимальное (по модулю) частное среди пар операндов с совпадающими единицами
         minQuotient = None
         exsDirection = None
         for measure in lwOther.names():
@@ -152,15 +169,16 @@ class MixedNum:
                 if (minQuotient == None) or (quotient.abs().intComp(minQuotient.abs()) < 0):
                     minQuotient = Frac(**quotient.dict())
             else:
-                # если в смешанном делителе есть единица, не входящая в состав делимого
-                # то делитель содержится в делимом ноль раз, по определению "исчерпания"
+                # если в делителе есть единица, не входящая в состав делимого
+                # то делимое невозможно исчерпать делителем, седовательно делитель содержится в делимом ноль раз
                 minQuotient = Frac()
                 break
         # вычитаем из делимого делитель, умноженный на найденное минимальное частное
         remainder = self.compose(other.with_rationals(Frac.mul, minQuotient).with_rationals(Frac.opposite))
 
-        # конвертируем остаток в исходные единицы
-        # (в делителе может присутствовать единица, отсутствующая в делимом, что может привести к неудобной форме результата)
+        # конвертируем остаток в исходные единицы делимого
+        # (иначе может быть неудобное представление просто из-за того,
+        # что в делимом и делителе присутствуют разные единицы даже из одного и того же сета)
         remainder = converter.convert(remainder, self.names())
 
         return(minQuotient, remainder)
@@ -174,7 +192,19 @@ class MixedNum:
 
 
 class Converter:
-    """converts one measure to another if there is a corresponding exchange rate"""
+    """converts one measure to another if a corresponding exchange rate exists"""
+
+    # именно и только converter знает о соотношениях единиц между собой
+    # rates - главный объект конвертера, таблица (словарь) курсов
+    # (используеся терминология курсов валют: исходная единица, целевая, кратность, курс)
+    # вспомогательные объекты:
+    # measures - список множеств, отдельное множество - это перечень единиц, относящихся к одному контексту
+    # (то есть таких, которые могут быть взаимно выражены друг через друга)
+    # ranged - список всех единиц, общий (не разделенный по сетам), 
+    # который перед конвертацией должен быть отсортирован в восходящем порядке
+    # (в итоге для каждого сета будет известен упорядоченный список единиц)
+    # isRanged - соответственно, признак отсортированности, 
+    # который сбрасывается при любом изменении курсов 
     
     __rates    = {}    # list of dictionaries, contains rates to convert one measure to another
     __measures = []    # list of sets, every set contains "line" (unordered) of measures of one context
@@ -199,21 +229,13 @@ class Converter:
                 return el
         return None
 
-    @staticmethod
-    def simple_frac(numerator, denominator):
-        absN = abs(numerator)
-        absD = abs(denominator)
-        return Frac(
-            intPart = 0
-            ,numerator = absN
-            ,denominator = absD
-            ,isNegative = ((absN != numerator) != (absD != denominator))
-        )
-
     def add_rate(self, source, target, multiplicity, rate):
+        """add main and dependent (cross and reverse) rates"""
 
-        #inner functions
+        #inner auxiliary functions
         def update_measures(*inMeasures):
+            """add a measure to the corresponding set"""
+
             outList = []
             crSet = {*inMeasures}
             for mSt in self.__measures:
@@ -230,7 +252,7 @@ class Converter:
             return self.__measures[-1]
 
         def add_cross_rate(base, cross, measureSet):
-            #measureSet = update_measures(base, cross)
+            """cross-rates"""
             
             for msreFound in measureSet:
                 if msreFound == cross:
@@ -252,6 +274,11 @@ class Converter:
                     )
 
         def add_record(source, target, measureSet, multiplicity, rate):
+            """elementary entry of rate table"""
+
+            # таблица устроена как словарь, 
+            # где ключом является кортеж (исходная + целевая единица),
+            # данными - словарь {кратность, курс}
 
             self.__rates[(source, target)] = {
                                                 'multiplicity': multiplicity
@@ -260,7 +287,7 @@ class Converter:
 
             add_cross_rate(source, target, measureSet)
 
-            frac = self.simple_frac(rate, multiplicity)
+            frac = Frac.shorter(rate, multiplicity)
             idx = MixedNum.name_in_list(source, self.__ranged)
             if idx == None:
                 self.__ranged.append(Elem(frac, source))
@@ -269,14 +296,14 @@ class Converter:
                     # replace by lesser
                     self.__ranged[idx] = Elem(frac, source)
 
-            # inverted
+            # reverse record
             if not (target, source) in self.__rates:
                 add_record(target, source, measureSet, rate, multiplicity)
             
             self.__isRanged = False
             return True
 
-        # main body
+        # main function body
         if source == target:
             return False
 
@@ -286,8 +313,8 @@ class Converter:
         if (source,target) in self.__rates:
             return False
 
-        # multiplicity and rate may be a fractions
-        # but we must reduce they to integer
+        # multiplicity and rate may be fractional, 
+        # must convert them to integers
         commonMult = Frac(multiplicity.denominator * rate.denominator)
         
         multiplicity = multiplicity.mul(commonMult).simple()
@@ -300,8 +327,13 @@ class Converter:
         return (add_record(source, target, measureSet, multiplicity, rate))
 
     def convert_to_lowest(self, mixedNum, measureSet):
+        """preliminary calculation for .convert() and .times()"""
+
+        # приводим элементы MixedNum к наименьшей еинице внутри каждого сета
+
+        # сортируем ranged, если еще не сортирован
         if not self.__isRanged:
-            #bubble sort (DESC)
+            # bubble sort (ascending)
             done = False
             while not done:
                 done = True
@@ -316,22 +348,26 @@ class Converter:
         for el in mixedNum.list:
             found = False
 
+            # ищем единицу каждого элемента числа в запрошенном сете единиц
             if el.name in measureSet:
                 for base in self.__ranged:
-                    #we begins from lowest measure
+                # перебираем упорядоченный набор единиц
+                # (начиная с наименьшей)
                     if el.name == base.name:
-                        #the same measure
+                        # ту же самую единицу добавляем в результат как есть
                         found = True
                         lowest.append(Elem(el.rational, base.name))
                         break
 
                     rate = (el.name, base.name)
                     if rate in self.__rates.keys():
+                        # добавляем конвертацию единицы числа в первую же найденную единицу (наименьшую),
+                        # если курс перевода существует
                         found = True
                         lowest.append(
                             Elem(
                                 el.rational.mul(
-                                    self.simple_frac(
+                                    Frac.shorter(
                                         numerator = self.__rates[rate]['rate']
                                         ,denominator = self.__rates[rate]['multiplicity']
                                     )
@@ -341,41 +377,61 @@ class Converter:
                         )
                         break
             if not found:
+                # если единица не найдена 
+                # (неизвестна, либо ни одна из единиц ее сета не запрошена для конвертации)
+                # - добавим ее как есть в конец результирующего числа
                 unConverted.append(el)
         return(MixedNum(lowest, unConverted))
 
 
     def convert(self, mixedNum, inMeasures):
-
+        """heart of whole class"""
+        
+        # normalize
         measures = []
         for measure in inMeasures:
             measures.append(measure.strip())
 
         lowest = self.convert_to_lowest(mixedNum, set(measures))
 
-        outList = []
-        remainders = []
-        quotients  = []
+        outList = []    # сюда будем накапливать результат
+        # вспомогательные списки
+        remainders = [] # остатки
+        quotients  = [] # частные
         for el in lowest.list:
+            # изначально равны исходным числам
+            # и будут последовательно уменьшаться
             remainders.append(el)
-            quotients.append(el)
+            # изначально равны исходным числам,
+            # но будут целиком перезаписаны
+            # каждый раз, когда найдется соответствующий курс
+            # или останутся в предыдущем состоянии
+            quotients.append(el)  
 
         for measure in measures:
+            # для каждой запрошенной единицы
             for idx in range(len(remainders)):
+                # определяем делитель
                 if measure == remainders[idx].name:
                     divisor = Frac(1)
                 else:
                     rate = (remainders[idx].name, measure)
                     if not rate in self.__rates.keys():
+                        # курс не найден - списки не изменились
                         continue
-                    divisor = self.simple_frac(
+                    divisor = Frac.shorter(
                             numerator = self.__rates[rate]['multiplicity']
                             ,denominator = self.__rates[rate]['rate']
                         )
+                # получаем очередное частное
                 quotient = remainders[idx].rational.div(divisor)
+                # выделяем целую часть (на случай, если далее встретятся более мелкие единицы)
                 intQuotient = Frac(quotient.mixed().intPart)
                 outList.append(Elem(intQuotient, measure))
+                # остаток уменьшаяется, его единица перезаписывается
                 remainders[idx] = Elem(remainders[idx].rational.sub(intQuotient.mul(divisor)), remainders[idx].name)
+                # сырое частное перезаписывается
+                # в конце концов необработанные ошметки сырых частных добавятся к результату
                 quotients[idx]  = Elem(quotient.sub(intQuotient), measure)
 
         return(MixedNum(outList, quotients).pack())

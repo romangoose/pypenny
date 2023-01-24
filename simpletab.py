@@ -1,8 +1,16 @@
+# Any copyright is dedicated to the Public Domain.
+# https://creativecommons.org/publicdomain/zero/1.0/
+
+# Версия 2023-01-24
+
 class SimpleTab:
-    __columns = {}
-    __header  = {}
-    __index   = {}
-    __rows    = 0
+
+    """простая колоночная таблица"""
+
+    def __init__(self):
+        self.__columns = {} # словарь списков, где ключ является именем поля, список - значениями колонки этого поля
+        self.__header  = {} # имена полей по индексу, для перебора полей по порядку
+        self.__rows    = 0  # количество строк в таблице
 
     @property
     def columns(self):
@@ -13,16 +21,13 @@ class SimpleTab:
         return(self.__header)
 
     @property
-    def index(self):
-        return(self.__index)
-
-    @property
     def rows(self):
         return(self.__rows)
 
     def get_row(self, idx):
+        # получаем по индексу кортеж полей, имитирующих строку таблицы
         outTuple = {}
-        for key in self.__header:
+        for key in self.__columns.keys():
             outTuple[key] = self.__columns[key][idx]
         return outTuple
 
@@ -52,10 +57,9 @@ class SimpleTab:
                         if field in self.__columns.keys():
                             continue
                         self.__columns[field] = []
-                        self.__header[field]  = idx
-                        self.__index[idx]     = field
+                        self.__header[idx]     = field
                     continue
                 
-                for idx in range(min(len(fields),len(self.__index))):
-                    self.__columns[self.__index[idx]].append(fields[idx].strip())
+                for idx in range(min(len(fields),len(self.__header))):
+                    self.__columns[self.__header[idx]].append(fields[idx].strip())
                 self.__rows = self.__rows + 1

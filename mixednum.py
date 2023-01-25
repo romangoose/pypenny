@@ -47,7 +47,7 @@ class MixedNum:
                     self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), el.name)
 
     def __str__(self):
-        return(str(self.__list))
+        return(','.join([str(i) for i in self.__list]))
 
     @property
     def list(self):
@@ -182,6 +182,67 @@ class MixedNum:
         remainder = converter.convert(remainder, self.names())
 
         return(minQuotient, remainder)
+
+    def intComp(self, other, converter):
+
+        """compare. return -1,0,1 for self is lesser than, equal to or bigger than other; or None if undefined"""
+
+        # сравнение определим только для случаев, 
+        # в которых все элементы числа self
+        # (приведенные к минимальной единице для каждого сета)
+        # находятся по "одну сторону" от соответствующих элементов числа other
+        # (некоторые элементы при этом могут быть равны между собой)
+        # если равны все элементы - то равны и числа
+        # если одноименные элементы находятся по разные стороны друг от друга
+        # то сравнение неопределено
+
+        # подготавливаем общий сет всех единиц 
+        measureSet = set()
+        for mSt in converter.measures:
+            measureSet = measureSet.union(mSt)
+
+        # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
+        lwSelf  = converter.convert_to_lowest(self, measureSet).pack()
+        lwOther = converter.convert_to_lowest(other, measureSet).pack()
+
+
+        result = 0 # по умолчанию числа равны
+        # перебираем "левое соединение" единиц other с с единицами self
+        for measure in lwOther.names():
+            if measure in lwSelf.names():
+                elSelf  = lwSelf.get_elem_by_name(measure)
+                elOther = lwOther.get_elem_by_name(measure)
+                side = elSelf.rational.intComp(elOther.rational)
+            else:
+                # сравнение элемента с ничем полностью определяется знаком элемента
+                # (нулевые элементы, которые имеют неотрицательный знак, - исключены благодаря pack())
+                elOther =   lwOther.get_elem_by_name(measure)
+                side    = - elOther.rational.intSign() # здесь минус: знак инвертирован, 
+                                                       # потому что элементы сравниваются в обратном порядке)
+
+            if side == 0:
+                continue
+            if result != 0 and result != side:
+                # разошлись стороны относительно нуля
+                return None
+            result = side
+
+        # соединяем единицы наборот, 
+        # в поисках единиц, присутствующих 
+        # проверяем знак на совпадение
+        for measure in lwSelf.names():
+            if measure not in lwOther.names():
+                elSelf  = lwSelf.get_elem_by_name(measure)
+                side = elSelf.rational.intSign()
+                if side == 0:
+                    continue
+                if result != 0 and result != side:
+                    # разошлись стороны относительно нуля
+                    return None
+                result = side
+
+        # если ранее не был возвращен None - возвращаем одинаковую "сторону" или ноль
+        return result 
 
     @staticmethod
     def name_in_list(inName, inList):

@@ -1,0 +1,14 @@
+Multiplicity;		Source;						Rate;			Target;
+60;					minute;						1;				hour
+1;					minute; 					60;				second
+24;					hour;						1;				day
+7;					day;						1;				week;
+
+1;					guinea;						21;				shilling
+1;					pound;						20;				shilling
+1;					crown;						5;				shilling
+1;					florin;						2;				shilling
+1;					shilling;					12;				penny
+1;					groat;						4;				penny
+1;					penny;						4;				farthing
+3;					noble;						1;				pound

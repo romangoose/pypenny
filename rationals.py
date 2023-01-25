@@ -5,11 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Версия 2022-12-17
-
-import numbers
-import operator
-
+# Версия 2023-01-23
 
 """Rational numbers (fractions)"""
 
@@ -37,6 +33,8 @@ class Rational:
         else:
             raise ValueError("incorrect part(s) of rational")
 
+    def __str__(self):
+        return(str(self.dict()))
 
     @property
     def intPart(self):
@@ -78,6 +76,7 @@ class Rational:
 
 
     def mixed(self):
+        """fraction with integer part extracted"""
         return Rational(
             self.numerator  // self.denominator + self.intPart # intPart
             ,self.numerator %  self.denominator                # numerator
@@ -86,13 +85,14 @@ class Rational:
         )
 
     def simple(self):
+        """proper notation of the fraction (without integer part)"""
         return Rational(
             0                                                 # intPart
             ,self.intPart * self.denominator + self.numerator # numerator
             ,self.denominator                                 # denominator
             ,self.isNegative                                  # isNegative
         )
-   
+
     def reduce(self):
         if self.numerator == 0:
             # simlest case: set denominator to 1
@@ -108,6 +108,7 @@ class Rational:
 
 
     def opposite(self):
+        """reverses the sign of a fraction"""
         return Rational(
             self.intPart         # intPart
             ,self.numerator      # numerator
@@ -115,7 +116,17 @@ class Rational:
             ,not self.isNegative # isNegative
         )
 
+    def abs(self):
+        """absolute value"""
+        return Rational(
+            self.intPart         # intPart
+            ,self.numerator      # numerator
+            ,self.denominator    # denominator
+            ,False                # isNegative
+        )
+
     def add(self, other):
+        """addition"""
         lcm_ =  Rational.lcm(self.denominator,other.denominator)
 
         num = (
@@ -133,10 +144,12 @@ class Rational:
         )
 
     def sub(self, other):
+        """substract"""
         return self.add(other.opposite())
 
 
     def intComp(self, other):
+        """comparison result as a number -1/0/1 (is self less than, equal to, greater than other)"""
         if self.isNegative != other.isNegative:
             # if signs are not equal, 
             # operands are not equal too,
@@ -156,6 +169,7 @@ class Rational:
             return frac.intSign()
 
     def reciprocal(self):
+        """1/self"""
         if self.isZero():
             raise ZeroDivisionError('Reciprocal causes division by zero')
 
@@ -167,6 +181,7 @@ class Rational:
         )
 
     def mul(self, other):
+        """multiplication"""
         return Rational(
             0                                                           # intPart
             ,(
@@ -178,14 +193,27 @@ class Rational:
         )
 
     def div(self, other):
+        """division"""
         if other.isZero():
             raise ZeroDivisionError('Division by zero')
         return self.mul(other.reciprocal())
 
 
-    #greatest common divisor
+    @staticmethod
+    def shorter(numerator, denominator):
+        """defines a fraction as a canonical ratio [-]A/[-]N"""
+        absN = abs(numerator)
+        absD = abs(denominator)
+        return Rational(
+            intPart = 0
+            ,numerator = absN
+            ,denominator = absD
+            ,isNegative = ((absN != numerator) != (absD != denominator))
+        )
+
     @staticmethod
     def gcd(a: int, b: int) -> int:
+        """greatest common divisor"""
         a, b = abs(a), abs(b)
         if min(a,b) == 0:
             return max(a,b,1)
@@ -195,8 +223,8 @@ class Rational:
 
         return a
 
-    #less common multiplier
     @staticmethod
     def lcm(a: int, b: int) -> int:
+        """less common multiplier"""
         a, b = abs(a), abs(b)
         return (a//Rational.gcd(a,b))*b

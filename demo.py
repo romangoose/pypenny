@@ -19,10 +19,28 @@ class main:
 Справка о самом себе вызовет общий метод справки.
 
         """
+        __msgHelp = """
+Демострационный калькулятор операций со смешанными числами.
+При запуске параметром можно передать файл со списком команд, которые будут выполнены.
+(В таком файле можно указать команды настройки и инициализации данных
+либо команды ввода и вычисления, в этом случае можно использовать перенаправление вывода 
+в файл, чтобы получить результаты вычислений).
+
+Вычисления:
+Поддерживается последовательный ввод четырех арифметических операций, единственный регистр вычислений; 
+Ввод ""=число"" помещает число в этот регистр.
+Ввод одной из операций ""[+-*/%]число"" выполняет действие над текущим регистром и введенным числом.
+
+Доступны дополнительные команды. Справку по команде можно получить, выполнив команду ""ПОМОЩЬ"", указав команду параметром
+        """
+
         strTopic = inStr.strip().upper()
         if not strTopic:
-            print(self.__msgHelp)
-            print(self.__mthSynonyms)
+            print(__msgHelp)
+            outList = []
+            for el in self.__mthSynonyms.keys():
+                outList.append(el)
+            print (outList)
             return True
 
         syn = self.__mthSynonyms.get(strTopic)
@@ -32,7 +50,7 @@ class main:
 
         mth = self.__methods.get(self.__mthSynonyms.get(strTopic))
         if mth == self.__mthHelp:
-            self._mthHelp()
+            self.__mthHelp()
             return True
 
         if mth and mth.__doc__:
@@ -113,7 +131,7 @@ class main:
 # ==========EVALUATE[
 
     def evaluate(self, instr):
-        """арифметиские вычисления"""
+        """арифметические вычисления"""
         def isRegular(inMNum):
             measures = inMNum.names()
             return(len(measures) == 1 and not measures[0].strip())
@@ -148,7 +166,7 @@ class main:
             #ДЕЛЕНИЕ (с остатком)
             try:
                 if isRegular(mInp):
-                    # на обчное число, "уменьшение в N раз"
+                    # на обычное число, "уменьшение в N раз"
                     quotient  = self.__register.with_rationals(Frac.mul, mInp.list[0].rational.reciprocal())
                     remainder = MNum.MixedNum((MNum.Elem(Frac()),)) # остаток всегда ноль
                 else:
@@ -177,7 +195,7 @@ class main:
         return True
 
     def normalize(self, mNum):
-        """сокращает число в более удобный вид"""
+        """приводит число в более удобный вид"""
         return(mNum.with_rationals(Frac.mixed).with_rationals(Frac.reduce).pack())
 
     def show_output(self, op = '=>', opnd = None):
@@ -191,7 +209,18 @@ class main:
 # ==========INIT[
 
     def read_IO_settings(self, fileName):
-        """FORMAT HELP MESSAGE"""
+        """Читает настройки ввода-вывода из файла.
+Имя файла необходимо передать параметром команды.
+Образец файла настроек:
+
+sprFld  = ,  # Разделяет части смешанного числа
+# относится к дроби внутри одной части смешанного числа:
+sprInt  = .  # Отделяет целую часть от дробной
+sprFrac = /  # Разделяет числитель и знаменатель
+
+Значения настроек разделителей не должны совпадать.        
+        
+        """
 
         __sprComm = '#'
         __sprVal  = "="
@@ -213,7 +242,18 @@ class main:
         return True
 
     def read_rates(self, fileName):
-        """RATES HELP MESSAGE"""
+        """Читает курсы единиц из файла. Имя файла необходимо передать параметром команды.
+Прочитанные курсы добавляются к текущим настройкам.
+Файл курсов - таблица в формате DSV, с разделителем "";"".
+В первой строке обязательны имена полей (порядок не важен)
+Образец:
+
+# Это знак комментария
+Multiplicity;   Source;             Rate;           Target;
+#Кратность;     ПриводимаяЕдиница;  Курс;           ПриведеннаяЕдиница
+1;  			Километр;			1000;	        Метр
+В качестве значений кратности и курса можно указывать дробные значения в установленном формате (см.ФОРМ).
+        """
 
         __sprComm = '#'
         __sprFld  = ";"
@@ -246,9 +286,6 @@ class main:
         self.__batch = None
 
         self.__msgStart = '''Mixed number calculator demo started. Type "help" for help. Type "exit" for Exit'''
-
-        self.__msgHelp = '''A simple demo mixed number calculator. Contains one calculating register.
-        '''
 
         self.__methods = {
             'HELP'     : self.show_help
@@ -304,7 +341,7 @@ class main:
         return True
 
     def read_batch(self):
-        """reads commands from batch file"""
+        """read commands from batch file"""
 
         __sprComm = '#'
 

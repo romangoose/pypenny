@@ -35,6 +35,7 @@ class SimpleTab:
 
         with open(filename,'r',encoding='utf-8-sig') as mFile:
             first = True
+            lenHeader = 0;
             while True:
                 line = mFile.readline()
                 if line == '':
@@ -58,8 +59,12 @@ class SimpleTab:
                             continue
                         self.__columns[field] = []
                         self.__header[idx]     = field
+                    lenHeader = len(self.__header);
                     continue
                 
-                for idx in range(min(len(fields),len(self.__header))):
+                if len(fields) < lenHeader:
+                    continue
+
+                for idx in range(lenHeader):
                     self.__columns[self.__header[idx]].append(fields[idx].strip())
                 self.__rows = self.__rows + 1

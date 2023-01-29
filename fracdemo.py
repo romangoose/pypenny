@@ -13,13 +13,26 @@ class main:
 
     __msgSettingsError = '''The calculator must be started with a parameter that specifies the name of the I/O settings file.
 Sample settings file:
-    intSeparator  = . # separator of the integer and fractional part
-    fracSeparator = / # separator of the numerator and denominator
+    sprInt  = . # separator of the integer and fractional part
+    sprFrac = / # separator of the numerator and denominator
 Values must have 1-symbol length and must not match.'''
     
-    __msgStart = '''Fraction calculator demo started. Type "help" for help. Type "exit" for Exit'''
+    __msgStart = '''Fraction calculator demo started. Type "help" for help. Type "exit" for exit'''
 
-    __msgHelp = '''Simple fraction calculator. Contains one calculating register
+    __msgHelp = '''Simple fraction calculator. Contains one calculating register, sequential input of operations [+-*/].
+Typing "=fraction" sets a fraction to a register.
+Also use "reduce" and "inv" (1/x) command.
+Fraction input format is "-I.N/D"
+(specify the fileт with I/O settings (separators) as the first parameter at startup).
+
+Поддерживается последовательный ввод четырех арифметических операций, единственный регистр вычислений; 
+Ввод "=дробь" помещает дробь в этот регистр.
+Ввод одной из операций "[+-*/]дробь" выполняет действие над текущим регистром и введенным числом.
+Команда "сокр" или "reduce" - сокращает текущую дробь.
+Команда "инв" или "inv" "переворачивает" дробь (1/х).
+Формат ввода (и вывода) дроби: "-Ц.Ч/З". Конкретные разделители устанавливаются в файле настроек,
+который необходимо указать первым параметром при запуске файла демо.
+
     '''
 
     def show_help(self):

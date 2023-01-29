@@ -275,7 +275,7 @@ Multiplicity;   Source;             Rate;           Target;
                     ,MStr.from_string(row['Multiplicity']).rationals()[0]
                     ,MStr.from_string(row['Rate']).rationals()[0]
                 ):
-                print('err with ', row['Source'],', ', row['Target'])
+                print('WARNING ', row['Source'],', ', row['Target'])
         return True
 
 # ==========]INIT

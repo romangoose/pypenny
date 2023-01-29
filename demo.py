@@ -1,7 +1,7 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Версия 2023-01-25
+# Версия 2023-01-27
 
 from sys import argv as sysArgv
 

@@ -1,0 +1,3 @@
+# пример отрицательного соотношения
+Multiplicity;	Source;		Rate;	Target;
+1;				negative;	-1;		positive

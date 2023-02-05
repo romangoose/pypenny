@@ -5,7 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Версия 2023-01-27
+# Версия 2023-02-05
 
 """Mixed Number arithmetic"""
 
@@ -267,10 +267,11 @@ class Converter:
     # isRanged - соответственно, признак отсортированности, 
     # который сбрасывается при любом изменении курсов 
     
-    __rates    = {}    # list of dictionaries, contains rates to convert one measure to another
-    __measures = []    # list of sets, every set contains "line" (unordered) of measures of one context
-    __ranged   = []    # ranged (sorted from "minimal" to "maximal") list of measures (all-in-one)
-    __isRanged = False # True, if ranged was really sorted. When rate are modifyed, sets to False
+    def __init__(self) -> None:
+        self.__rates    = {}    # list of dictionaries, contains rates to convert one measure to another
+        self.__measures = []    # list of sets, every set contains "line" (unordered) of measures of one context
+        self.__ranged   = []    # ranged (sorted from "minimal" to "maximal") list of measures (all-in-one)
+        self.__isRanged = False # True, if ranged was really sorted. When rate are modifyed, sets to False
 
     @property
     def rates(self):
@@ -280,15 +281,49 @@ class Converter:
     def measures(self):
         return(self.__measures)
 
+    def sort_ranged(self):
+
+        """sort ranged if not yet"""
+
+        if not self.__isRanged:
+            # bubble sort (ascending)
+            done = False
+            while not done:
+                done = True
+                for idx in range(1,len(self.__ranged)):
+                    if (self.__ranged[idx].rational.intComp(self.__ranged[idx-1].rational) < 0):
+                        self.__ranged[idx], self.__ranged[idx-1] = self.__ranged[idx-1], self.__ranged[idx]
+                        done = False
+            self.__isRanged = True
+
     @property
     def ranged(self):
+        self.sort_ranged()
         return(self.__ranged)
 
     def get_measureSet(self, inMeasure):
+
+        """return set where the inMeasure is"""
+
         for el in self.__measures:
             if inMeasure in el:
                 return el
         return None
+
+    def get_measureList(self, inMeasure):
+
+        """return (ordered) list of inMeasure's set"""
+
+        mSet = self.get_measureSet(inMeasure)
+        if mSet == None:
+            return None
+
+        self.sort_ranged()
+        outList = []
+        for el in self.ranged:
+            if el.name in mSet:
+                outList.append(el.name)
+        return (outList)
 
     def add_rate(self, source, target, multiplicity, rate):
         """add main and dependent (cross and reverse) rates"""
@@ -312,7 +347,7 @@ class Converter:
             self.__measures = outList
             return self.__measures[-1]
 
-        def add_cross_rate(base, cross, measureSet):
+        def add_cross_rate(base, cross, measureSet, depth = False):
             """cross-rates"""
             
             for msreFound in measureSet:
@@ -333,6 +368,15 @@ class Converter:
                         ,multiplicity // gcd_
                         ,rate         // gcd_
                     )
+                if not depth:
+                    # для случаев, когда два разных сета объединяются достаточно поздно
+                    # (например, соответствие двух линеек устанавливается после того,
+                    # как обе линейки уже заполнены)
+                    # потребуется рекурсивный вызов, 
+                    # но глубина рекурсии заведомо ограничена двумя уровнями 
+                    # (одно соответствие по определению связывет только две единицы)
+                    add_cross_rate(cross, msreFound, measureSet, True)
+                
 
         def add_record(source, target, measureSet, multiplicity, rate):
             """elementary entry of rate table"""
@@ -346,8 +390,7 @@ class Converter:
                                                 ,'rate':        rate
                                             }
 
-            add_cross_rate(source, target, measureSet)
-
+            # update ranged
             frac = Frac.shorter(rate, multiplicity)
             idx = MixedNum.name_in_list(source, self.__ranged)
             if idx == None:
@@ -361,7 +404,6 @@ class Converter:
             if not (target, source) in self.__rates:
                 add_record(target, source, measureSet, rate, multiplicity)
             
-            self.__isRanged = False
             return True
 
         # main function body
@@ -385,7 +427,14 @@ class Converter:
         rate = (rate.numerator // rate.denominator)*rate.intSign()
 
         measureSet = update_measures(source, target)
-        return (add_record(source, target, measureSet, multiplicity, rate))
+
+        self.__isRanged = False # сбрасываем признак сортировки 
+        add_record(source, target, measureSet, multiplicity, rate)
+        add_cross_rate(source, target, measureSet)
+        add_cross_rate(target, source, measureSet)
+
+        return True
+
 
     def convert_to_lowest(self, mixedNum, measureSet):
         """preliminary calculation for .convert() and .times()"""
@@ -393,16 +442,7 @@ class Converter:
         # приводим элементы MixedNum к наименьшей еинице внутри каждого сета
 
         # сортируем ranged, если еще не сортирован
-        if not self.__isRanged:
-            # bubble sort (ascending)
-            done = False
-            while not done:
-                done = True
-                for idx in range(1,len(self.__ranged)):
-                    if (self.__ranged[idx].rational.intComp(self.__ranged[idx-1].rational) < 0):
-                        self.__ranged[idx], self.__ranged[idx-1] = self.__ranged[idx-1], self.__ranged[idx]
-                        done = False
-            self.__isRanged = True
+        self.sort_ranged()
 
         lowest      = []
         unConverted = []

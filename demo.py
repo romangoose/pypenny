@@ -1,7 +1,7 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Версия 2023-01-27
+# Версия 2023-02-05
 
 from sys import argv as sysArgv
 
@@ -403,8 +403,8 @@ Multiplicity;   Source;             Rate;           Target;
         return True
 
 # ==========]MAIN
-
-main_ = main()
-if main_.init():
-    if main_.read_batch():
-        main_.work()
+if __name__ == '__main__':
+    main_ = main()
+    if main_.init():
+        if main_.read_batch():
+            main_.work()

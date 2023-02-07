@@ -85,7 +85,7 @@ class main:
         self.__converter = MNum.Converter()
 
     def show_convert(self, strMeasures):
-        """Конвертирует число из текущего регистра в уазанные единицы и помещает результат в регистр.
+        """Конвертирует число из текущего регистра в указанные единицы и помещает результат в регистр.
 Настройка конвертации задается параметром в виде списка единиц, разделенных аналогично частям смешанного числа (см. ФОРМ).
 Если в конвертируемом числе присутствуют части с единицами, которые не могут быть приведены к указанным настройкам, эти части выводятся в конце как есть.
 Для конвертации необходима установка курсов (см. КУРС).
@@ -115,9 +115,13 @@ class main:
             print('Сравнение неопределено')
 
 
-    def show_rates(self, pars = None):
-        """Выводит таблицу курсов."""
-        print(str(self.__converter.rates))
+    def show_rates(self, inName = ''):
+        """Выводит таблицу курсов с отбором по единице, переданной параметром."""
+        if not inName:
+            print("укажите единицу для отбора")
+        for el in self.__converter.rates:
+            if inName in el:
+                print(str(el), self.__converter.rates[el])
 
     def show_measures(self, pars = None):
         """Выводит списки единиц из таблицы курсов, изолированные по ""сетам""."""
@@ -135,49 +139,87 @@ class main:
     def evaluate(self, instr):
         """арифметические вычисления"""
         def isRegular(inMNum):
-            measures = inMNum.names()
-            return(len(measures) == 1 and not measures[0].strip())
+            return(
+                len(inMNum.list) == 1
+                and (inMNum.list[0].measure == MNum.Measure())
+            )
+
+        # УМНОЖЕНИЕ (только на обычное число, "увеличение в N раз")
+        def fool_mult(multiplicand, multiplier):
+            self.__register = multiplicand.with_rationals(Frac.mul, multiplier)
+
+        # "полное" умножение с преобразованием единиц
+        def full_mult(multiplier):
+            self.__register = self.__register.mul(multiplier)
 
         op = instr[0] if len(instr) > 0 else ' '
 
         sInp = instr[1:]
+        # знак деления с остатком
+        if (
+            op == '/'
+            and len(instr) > 1
+            and instr[1] == '/'
+        ):
+            op = '//'
+            sInp = sInp[1:]
+
+
         mInp = MStr.from_string(sInp.strip())
 
         if op == '=':
             self.__register = mInp
         
         elif op == '+':
-            #СЛОЖЕНИЕ
+            # СЛОЖЕНИЕ
             self.__register = self.__register.compose(mInp)
         elif op == '-':
-            #ВЫЧИТАНИЕ
+            # ВЫЧИТАНИЕ
             self.__register = self.__register.compose(mInp.with_rationals(Frac.opposite))
         elif op == '*':
-            #УМНОЖЕНИЕ (только на обычное число, "увеличение в N раз")
             if isRegular(mInp):
-                multiplicand = self.__register
-                multiplier   = mInp
+                fool_mult(self.__register, mInp.list[0].rational)
             elif isRegular(self.__register):
-                multiplicand = mInp
-                multiplier   = self.__register
+                fool_mult(mInp, self.__register.list[0].rational)
             else:
-                print('Перемножение двух смешанных чисел не определено')
-                return False
-            self.__register = multiplicand.with_rationals(Frac.mul, multiplier.list[0].rational)
-        elif op == '/' or op == '%':
-            #ДЕЛЕНИЕ (с остатком)
+                full_mult(mInp)
+            
+        elif op == '/':
+            # "полное" деление с преобразованием единиц
+            # требует конвертера.
+            # ограничено одной единицей в приведенном значении
+            # ВРЕМЕННО ограничено количеством один во ПЕРВОНАЧАЛЬНО ВВЕДЕНОМ значении
             try:
                 if isRegular(mInp):
-                    # на обычное число, "уменьшение в N раз"
-                    quotient  = self.__register.with_rationals(Frac.mul, mInp.list[0].rational.reciprocal())
-                    remainder = MNum.MixedNum((MNum.Elem(Frac()),)) # остаток всегда ноль
+                    # на число - равносильно обычному делению
+                    # но остаток формально не выделяется
+                    fool_mult(self.__register, mInp.list[0].rational.reciprocal())
                 else:
-                    # на смешанное число, "исчерпывание" (в том числе и обычного числа)
-                    result = self.__register.times(mInp, self.__converter)
-                    quotient  = MNum.MixedNum((MNum.Elem(result[0]),))
-                    remainder = result[1]
+                    if len(mInp.list) > 1:
+                        print("ВРЕМЕННО полное деление возможно только на односоставное смешанное число")
+                        return False
+                    full_mult(mInp.reciprocal())
+            except ZeroDivisionError as err:
+                print(str(err))
+                return False
+            
+        elif op == '//' or op == '%':
+            # ДЕЛЕНИЕ (с остатком)
+            try:
+                if isRegular(mInp):
+                    print("для деления на обычное число воспользуйтесь операцией /")
+                    return False
+                    # на обычное число, "уменьшение в N раз"
+                    # quotient  = fool_mult(self.__register, mInp.list[0].rational.reciprocal())
+                    # remainder = MNum.MixedNum((MNum.Elem(Frac()),)) # остаток всегда ноль
+                    # а может быть производить деление именно нацело?
+                # else:
+                # на смешанное число, "исчерпывание" (в том числе и обычного числа)
+                result = self.__register.times(mInp, self.__converter)
+                quotient  = MNum.MixedNum((MNum.Elem(result[0]),))
+                remainder = result[1]
 
-                if op == '/':
+                if op == '//':
                     # результат - частное
                     print ('Остаток: ', MStr.to_string(self.normalize(remainder)))
                     self.__register = quotient
@@ -227,7 +269,7 @@ sprFrac = /  # Разделяет числитель и знаменатель
         __sprComm = '#'
         __sprVal  = "="
         
-        mIni = Ini({'sprFld' : None, 'sprInt' : None, 'sprFrac' : None})
+        mIni = Ini({'sprFld' : None, 'sprInt' : None, 'sprFrac' : None, 'sprDiv' : None, 'sprMul' : None, 'sprPow' : None})
         fileName = fileName.strip()
         try:
             mIni.read_from_file(fileName, __sprComm, __sprVal)
@@ -235,7 +277,7 @@ sprFrac = /  # Разделяет числитель и знаменатель
             print('Settings file not foud: ', fileName, ', format was not changed')
             return False
         
-        if not MStr.set_separators(mIni['sprFld'], mIni['sprInt'] ,mIni['sprFrac']):
+        if not MStr.set_separators(mIni['sprFld'], mIni['sprInt'] ,mIni['sprFrac'] ,mIni['sprDiv'] ,mIni['sprMul'] ,mIni['sprPow']):
             print('Incorrect separators, format was not changed')
             return False
 

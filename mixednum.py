@@ -16,18 +16,139 @@ here put the theory of a mixed numbers
 
 from rationals import Rational as Frac
 
-class Elem:
-    """the elementary part of a mixed number: a fraction having a measure name"""
-    def __init__(self, rational, name=''):
-        self.__rational = rational
+class MsrPart:
+    """the elementary part of combined measure: name and exponent"""
+    def __init__(self, name = '', exponent = 1):
+        def is_correct(name, exponent):
+            return(
+                isinstance(name, str)
+                and type(exponent) is int
+                and exponent != 0
+            )
+        if not is_correct(name, exponent):
+            raise ValueError("incorrect part(s) of measure")
+            
         self.__name = name.strip()
+        self.__exponent = exponent
+        
 
     def __str__(self):
-        return(str({'rational':str(self.__rational), 'name':str(self.__name)}))
+        return(str({'name':str(self.__name), 'exponent':str(self.__exponent)}))
+
+    def __eq__(self, other):
+        if not isinstance(other, MsrPart):
+            return False
+        return(
+            self.name == other.name
+            and self.exponent == other.exponent
+        )
 
     @property
     def name(self):
         return(self.__name)
+
+    @property
+    def exponent(self):
+        return(self.__exponent)
+
+class Measure:
+    """combined measure: list of elementary parts (MsrPart)"""
+    def __init__(self, *inLists):
+        self.__list = []
+        for lst in inLists:
+            for el in lst:
+                if not isinstance(el, MsrPart):
+                    raise ValueError("incorrect measure's part")
+                if el.name == '':
+                    continue
+                idx = self.name_index(el.name)
+                if idx == None:
+                    self.__list.append(MsrPart(el.name, el.exponent))
+                else:
+                    newExpo = el.exponent + self.__list[idx].exponent
+                    if newExpo:
+                        self.__list[idx] = MsrPart(self.__list[idx].name, newExpo)
+                    else:
+                        del self.__list[idx]
+        #if len(self.__list) == 0:
+        #    self.__list.append(MsrPart())
+
+    def __str__(self):
+        return(','.join([str(i) for i in self.__list]))
+
+    def __eq__(self, other):
+        if not isinstance(other, Measure):
+            return False
+        sN = self.names()
+        oN = other.names()
+        allN = {*sN,*oN}
+        if len(allN) == len(sN) == len(oN):
+            for name in allN:
+                if self.get_part_by_name(name) != other.get_part_by_name(name):
+                    return False
+            return True
+        return False
+
+    def __neg__(self):
+        outList = []
+        for el in self.__list:
+            outList.append(MsrPart(el.name, -el.exponent))
+        return(Measure(outList))
+
+    @property
+    def list(self):
+        return(self.__list)
+
+    def names(self):
+        """all part's names of the measure"""
+        outList = []
+        for el in self.__list:
+            outList.append(el.name)
+        return outList
+
+    def name_index(self, inName):
+        for idx in range(len(self.__list)):
+            if self.__list[idx].name == inName:
+                return idx
+        return None
+
+    def get_part_by_name(self, inName):
+        idx = self.name_index(inName)
+        if idx == None:
+            return None
+        return(self.__list[idx])
+
+    def compose(self, *others):
+        # """union (with the summation  of the same-name parts) lists of entering MixedNumbers"""
+        outLists = []
+        outLists.append(self.__list)
+        for el in others:
+            outLists.append(el.list)
+        return(Measure(*outLists))
+
+
+class Elem:
+    """the elementary part of a mixed number: a fraction having a measure"""
+    def __init__(self, rational, measure = None):
+        def is_correct(rational, measure):
+            return(
+                isinstance(rational, Frac)
+                and isinstance(measure, Measure)
+            )
+        if measure == None:
+            measure = Measure()
+        if not is_correct(rational, measure):
+            raise ValueError("incorrect part(s) of mixed number element")
+        
+        self.__rational = rational
+        self.__measure = measure
+
+    def __str__(self):
+        return(str({'rational':str(self.__rational), 'measure':str(self.__measure)}))
+
+    @property
+    def measure(self):
+        return(self.__measure)
 
     @property
     def rational(self):
@@ -40,11 +161,13 @@ class MixedNum:
         self.__list = []
         for lst in inLists:
             for el in lst:
-                idx = MixedNum.name_in_list(el.name, self.__list)
+                if not isinstance(el, Elem):
+                    raise ValueError("incorrect element of mixed number")
+                idx = self.measure_index(el.measure)
                 if idx == None:
-                    self.__list.append(Elem(el.rational, el.name))
+                    self.__list.append(Elem(el.rational, el.measure))
                 else:
-                    self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), el.name)
+                    self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), el.measure)
 
     def __str__(self):
         return(','.join([str(i) for i in self.__list]))
@@ -60,6 +183,13 @@ class MixedNum:
             outList.append(el.rational)
         return outList
 
+    def measure_index(self, inMeasure):
+        for idx in range(len(self.__list)):
+            if self.__list[idx].measure == inMeasure:
+                return idx
+        return None
+
+    #INCORRECT
     def names(self):
         """all measure names of the number"""
         outList = []
@@ -67,6 +197,7 @@ class MixedNum:
             outList.append(el.name)
         return outList
 
+    #INCORRECT
     def get_elem_by_name(self, inName):
         for el in self.__list:
             if el.name == inName:
@@ -90,12 +221,35 @@ class MixedNum:
             outLists.append(mxNum.list)
         return(MixedNum(*outLists))
 
+    def reciprocal(self):
+        outList = []
+        for el in self.__list:
+            outList.append(
+                Elem(
+                    el.rational.reciprocal()
+                    ,-el.measure
+                )
+            )
+        return(MixedNum(outList))
+
+    def mul(self, other):
+        outList = []
+        for oEl in other.__list:
+            for sEl in self.__list:
+                outList.append(
+                    Elem(
+                        oEl.rational.mul(sEl.rational)
+                        ,oEl.measure.compose(sEl.measure)
+                    )
+                )
+        return(MixedNum(outList))
+
     def pack(self):
         """remove zero-elements"""
         outList = []
-        for el in self.list:
+        for el in self.__list:
             if not el.rational.isZero():
-                outList.append(Elem(el.rational, el.name))
+                outList.append(Elem(el.rational, el.measure))
         return(MixedNum(outList))
 
     def with_rationals(self, func, pars=None):
@@ -105,9 +259,9 @@ class MixedNum:
         outList = []
         for el in self.list:
             if pars == None:
-                outList.append(Elem(func(el.rational), el.name))
+                outList.append(Elem(func(el.rational), el.measure))
             else:
-                outList.append(Elem(func(el.rational,pars), el.name))
+                outList.append(Elem(func(el.rational,pars), el.measure))
         return(MixedNum(outList))
 
     def times(self, other, converter):
@@ -243,13 +397,6 @@ class MixedNum:
 
         # если ранее не был возвращен None - возвращаем одинаковую "сторону" или ноль
         return result 
-
-    @staticmethod
-    def name_in_list(inName, inList):
-        for idx in range(len(inList)):
-            if inList[idx].name == inName:
-                return idx
-        return None
 
 
 class Converter:
@@ -391,14 +538,16 @@ class Converter:
                                             }
 
             # update ranged
+            msrSource = Measure((MsrPart(source),))
             frac = Frac.shorter(rate, multiplicity)
-            idx = MixedNum.name_in_list(source, self.__ranged)
+            # костылек - создаем объект, чтобы воспользоваться его методом :(
+            idx = MixedNum(self.__ranged).measure_index(msrSource)
             if idx == None:
-                self.__ranged.append(Elem(frac, source))
+                self.__ranged.append(Elem(frac,msrSource))
             else:
                 if (self.__ranged[idx].rational.intComp(frac) > 0):
                     # replace by lesser
-                    self.__ranged[idx] = Elem(frac, source)
+                    self.__ranged[idx] = Elem(frac, msrSource)
 
             # reverse record
             if not (target, source) in self.__rates:

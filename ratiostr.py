@@ -5,7 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Версия 2023-01-23
+# Версия 2023-02-07
 
 from rationals import Rational as Frac
 
@@ -54,7 +54,7 @@ class RatioString:
 
 
     @classmethod
-    def from_string(cls, instr):
+    def from_string(cls, instr = ''):
         """parse fraction from string like '-I.N/D', where ALL LAST parts of string (including seperstors) can be empty.
 returns tuple (fraction, tail-of-string)
 

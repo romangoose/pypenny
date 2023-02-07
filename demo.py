@@ -1,7 +1,7 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Версия 2023-02-05
+# Версия 2023-02-07
 
 from sys import argv as sysArgv
 
@@ -367,7 +367,7 @@ Multiplicity;   Source;             Rate;           Target;
             except FileNotFoundError as err:
                 print(str(err))
             
-            return True
+        return True
 
     def work(self):
         """main operating cycle"""

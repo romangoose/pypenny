@@ -70,9 +70,9 @@ class main:
 """
         outList = []
         for elem in self.__register.list:
-            outList.append('{dec}{name}'.format(
+            outList.append('{dec}{msr}'.format(
                 dec  = Frac.decimal(elem.rational)
-                ,name = (' ' + elem.name if elem.name else '')
+                ,msr = (' ' + MStr.measure_to_string(elem.measure) if elem.measure != MNum.Measure() else '')
                 )
             )
         print ((self.__sprFld + ' ').join(outList))
@@ -93,7 +93,7 @@ class main:
 """
         measures = []
         for el in strMeasures.split(self.__sprFld):
-            measures.append(el.strip())
+            measures.append(MStr.measure_from_string(el.strip()))
         mNum = self.normalize(self.__converter.convert(self.__register, measures))
         self.__register = self.normalize(mNum)
         self.show_output(' => ', MNum.MixedNum())
@@ -123,14 +123,14 @@ class main:
             if inName in el:
                 print(str(el), self.__converter.rates[el])
 
-    def show_measures(self, pars = None):
+    def show_units(self, pars = None):
         """Выводит списки единиц из таблицы курсов, изолированные по ""сетам""."""
-        print(self.__converter.measures)
+        print(self.__converter.units)
 
     def show_ranged(self, pars = None):
         """Выводит общую ранжированную таблицу единиц."""
         for el in self.__converter.ranged:
-            print(el)
+            print('name: ', el['name'], ', rational: ', str(el['rational']))
 
 # ==========]METHODS
 
@@ -204,6 +204,17 @@ class main:
                 return False
             
         elif op == '//' or op == '%':
+
+            # --[DEBUG
+            unitSet = set()
+            for mSt in self.__converter.units:
+                unitSet = unitSet.union(mSt)
+            #unitSet = set(('км', 'м', 'час', 'мин', 'сек'))
+            #unitSet = set(('мин', 'час'))
+
+            self.__register = self.__converter.convert_to_lowest(self.__register, unitSet)
+            # --]
+            '''
             # ДЕЛЕНИЕ (с остатком)
             try:
                 if isRegular(mInp):
@@ -216,7 +227,7 @@ class main:
                 # else:
                 # на смешанное число, "исчерпывание" (в том числе и обычного числа)
                 result = self.__register.times(mInp, self.__converter)
-                quotient  = MNum.MixedNum((MNum.Elem(result[0]),))
+                quotient  = MNum.MixedNum(MNum.Elem(result[0]))
                 remainder = result[1]
 
                 if op == '//':
@@ -230,6 +241,7 @@ class main:
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
+            '''
         else:
             print('"' + instr + '" is incorrect')
             return False
@@ -340,7 +352,7 @@ Multiplicity;   Source;             Rate;           Target;
             ,'COMPARE' : self.show_compare
 
             ,'RATETAB':self.show_rates
-            ,'MEASURES':self.show_measures
+            ,'UNITS'  :self.show_units
             ,'RANGED':self.show_ranged
 
             ,'DECIMAL' : self.show_decimal
@@ -368,8 +380,8 @@ Multiplicity;   Source;             Rate;           Target;
 
             ,'TAB':'RATETAB'
             ,'ТАБ':'RATETAB'
-            ,'MSR':'MEASURES'
-            ,'ЕД':'MEASURES'
+            ,'UNI':'UNITS'
+            ,'ЕД' :'UNITS'
             ,'RANG':'RANGED'
             ,'РАНГ':'RANGED'
 

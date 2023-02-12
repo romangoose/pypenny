@@ -177,6 +177,7 @@ class main:
             # ВЫЧИТАНИЕ
             self.__register = self.__register.compose(mInp.with_rationals(Frac.opposite))
         elif op == '*':
+            # УМНОЖЕНИЕ
             if isRegular(mInp):
                 fool_mult(self.__register, mInp.list[0].rational)
             elif isRegular(self.__register):
@@ -185,50 +186,34 @@ class main:
                 full_mult(mInp)
             
         elif op == '/':
-            # "полное" деление с преобразованием единиц
-            # требует конвертера.
-            # ограничено одной единицей в приведенном значении
-            # ВРЕМЕННО ограничено количеством один во ПЕРВОНАЧАЛЬНО ВВЕДЕНОМ значении
+            # ДЕЛЕНИЕ обычное 
             try:
                 if isRegular(mInp):
-                    # на число - равносильно обычному делению
-                    # но остаток формально не выделяется
+                    # на число - равносильно делению частей числа
                     fool_mult(self.__register, mInp.list[0].rational.reciprocal())
                 else:
-                    if len(mInp.list) > 1:
-                        print("ВРЕМЕННО полное деление возможно только на односоставное смешанное число")
-                        return False
-                    full_mult(mInp.reciprocal())
+                    # "полное" деление с преобразованием единиц
+                    # требует конвертера.
+                    # ограничено одной единицей (минимальной) в приведенном значении
+                    self.__register = self.__register.div(mInp, self.__converter)
             except ZeroDivisionError as err:
+                print(str(err))
+                return False
+            except ValueError as err:
                 print(str(err))
                 return False
             
         elif op == '//' or op == '%':
-
-            # --[DEBUG
-            unitSet = set()
-            for mSt in self.__converter.units:
-                unitSet = unitSet.union(mSt)
-            #unitSet = set(('км', 'м', 'час', 'мин', 'сек'))
-            #unitSet = set(('мин', 'час'))
-
-            self.__register = self.__converter.convert_to_lowest(self.__register, unitSet)
-            # --]
-            '''
             # ДЕЛЕНИЕ (с остатком)
             try:
                 if isRegular(mInp):
                     print("для деления на обычное число воспользуйтесь операцией /")
                     return False
-                    # на обычное число, "уменьшение в N раз"
-                    # quotient  = fool_mult(self.__register, mInp.list[0].rational.reciprocal())
-                    # remainder = MNum.MixedNum((MNum.Elem(Frac()),)) # остаток всегда ноль
-                    # а может быть производить деление именно нацело?
-                # else:
-                # на смешанное число, "исчерпывание" (в том числе и обычного числа)
-                result = self.__register.times(mInp, self.__converter)
-                quotient  = MNum.MixedNum(MNum.Elem(result[0]))
-                remainder = result[1]
+                else:
+                    # на смешанное число, "исчерпывание" (в том числе и обычного числа)
+                    result = self.__register.times(mInp, self.__converter)
+                    quotient  = MNum.MixedNum((MNum.Elem(result[0]),))
+                    remainder = result[1]
 
                 if op == '//':
                     # результат - частное
@@ -241,7 +226,6 @@ class main:
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
-            '''
         else:
             print('"' + instr + '" is incorrect')
             return False

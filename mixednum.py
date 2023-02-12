@@ -180,27 +180,24 @@ class MixedNum:
             outList.append(el.rational)
         return outList
 
+    def get_measures(self):
+        outList = []
+        for el in self.__list:
+            outList.append(el.measure)
+        return outList
+
     def get_measure_index(self, inMeasure):
         for idx in range(len(self.__list)):
             if self.__list[idx].measure == inMeasure:
                 return idx
         return None
 
-    #INCORRECT
-    def names(self):
-        """all measure names of the number"""
-        outList = []
-        for el in self.__list:
-            outList.append(el.name)
-        return outList
+    def get_elem_by_measure(self, inMeasure):
+        idx = self.get_measure_index(inMeasure)
+        if idx == None:
+            return None
+        return(self.__list[idx])
 
-    #INCORRECT
-    def get_elem_by_name(self, inName):
-        for el in self.__list:
-            if el.name == inName:
-                return el
-        return None
-	
     def compose(self, *others):
         """union (with the summation  of the same-name parts) lists of entering MixedNumbers"""
 
@@ -242,6 +239,33 @@ class MixedNum:
                     )
                 )
         return(MixedNum(outList))
+
+    def div(self, other, converter):
+        """Mx/Mx division: shortcut for multiplication with preliminary conversion and check"""
+
+        # check if a mixed number contains only one element (one measure)
+        measures = []
+        for el in other.list:
+            if el.measure not in measures:
+                measures.append(el.measure)
+        divisor = converter.convert_to_lowest(other, measures)
+        if len(divisor.list) > 1:
+            raise ValueError('divisor contains more than one measure')
+
+        # flip the elements' numbers
+        # may causes divizion by zero
+        divisor = divisor.with_rationals(Frac.reciprocal)
+
+        # finally flip the units of measure
+        outList = []
+        for el in divisor.list:
+            partList = []
+            for part in el.measure.list:
+                partList.append(MsrPart(part.name, -part.exponent))
+            outList.append(Elem(el.rational, Measure(partList)))
+        
+        return(self.mul(MixedNum(outList)))
+
 
     def pack(self):
         """remove zero-elements"""
@@ -291,24 +315,28 @@ class MixedNum:
         # либо только противоположные)
 
 
-        # подготавливаем общий сет всех единиц 
-        unitSet = set()
-        for mSt in converter.units:
-            unitSet = unitSet.union(mSt)
+        # подготавливаем общий список всех единиц 
+        measures = []
+        for el in *self.list, *other.list:
+            if el.measure not in measures:
+                measures.append(el.measure)
 
         # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
-        lwSelf  = converter.convert_to_lowest(self, unitSet).pack()
-        lwOther = converter.convert_to_lowest(other, unitSet).pack()
+        lwSelf  = converter.convert_to_lowest(self, measures).pack()
+        lwOther = converter.convert_to_lowest(other, measures).pack()
         if len(lwOther.__list) == 0:
             raise ZeroDivisionError('division by zero')
+
+        msrOther = lwOther.get_measures()
+        msrSelf  = lwSelf.get_measures()
 
         # вычисляем минимальное (по модулю) частное среди пар операндов с совпадающими единицами
         minQuotient = None
         exsDirection = None
-        for unitName in lwOther.names():
-            if unitName in lwSelf.names():
-                elSelf  = lwSelf.get_elem_by_name(unitName)
-                elOther = lwOther.get_elem_by_name(unitName)
+        for msr in msrOther:
+            if msr in msrSelf:
+                elSelf  = lwSelf.get_elem_by_measure(msr)
+                elOther = lwOther.get_elem_by_measure(msr)
                 quotient = elSelf.rational.div(elOther.rational).reduce()
                 if exsDirection == None: 
                     exsDirection = quotient.intSign() # архивируем знак (направление исчерпывания)
@@ -332,7 +360,7 @@ class MixedNum:
         # конвертируем остаток в исходные единицы делимого
         # (иначе может быть неудобное представление просто из-за того,
         # что в делимом и делителе присутствуют разные единицы даже из одного и того же сета)
-        remainder = converter.convert(remainder, self.names())
+        remainder = converter.convert(remainder, self.get_measures())
 
         return(minQuotient, remainder)
 
@@ -349,27 +377,30 @@ class MixedNum:
         # если одноименные элементы находятся по разные стороны друг от друга
         # то сравнение неопределено
 
-        # подготавливаем общий сет всех единиц 
-        unitSet = set()
-        for mSt in converter.units:
-            unitSet = unitSet.union(mSt)
+        # подготавливаем общий список всех единиц 
+        measures = []
+        for el in *self.list, *other.list:
+            if el.measure not in measures:
+                measures.append(el.measure)
 
         # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
-        lwSelf  = converter.convert_to_lowest(self, unitSet).pack()
-        lwOther = converter.convert_to_lowest(other, unitSet).pack()
+        lwSelf  = converter.convert_to_lowest(self, measures).pack()
+        lwOther = converter.convert_to_lowest(other, measures).pack()
 
+        msrOther = lwOther.get_measures()
+        msrSelf  = lwSelf.get_measures()
 
         result = 0 # по умолчанию числа равны
         # перебираем "левое соединение" единиц other с с единицами self
-        for unitName in lwOther.names():
-            if unitName in lwSelf.names():
-                elSelf  = lwSelf.get_elem_by_name(unitName)
-                elOther = lwOther.get_elem_by_name(unitName)
+        for msr in msrOther:
+            if msr in msrSelf:
+                elSelf  = lwSelf.get_elem_by_measure(msr)
+                elOther = lwOther.get_elem_by_measure(msr)
                 side = elSelf.rational.intComp(elOther.rational)
             else:
                 # сравнение элемента с ничем полностью определяется знаком элемента
                 # (нулевые элементы, которые имеют неотрицательный знак, - исключены благодаря pack())
-                elOther =   lwOther.get_elem_by_name(unitName)
+                elOther =   lwOther.get_elem_by_measure(msr)
                 side    = - elOther.rational.intSign() # здесь минус: знак инвертирован, 
                                                        # потому что элементы сравниваются в обратном порядке)
 
@@ -381,11 +412,11 @@ class MixedNum:
             result = side
 
         # соединяем единицы наборот, 
-        # в поисках единиц, присутствующих 
+        # в поисках единиц, присутствующих только в self 
         # проверяем знак на совпадение
-        for unitName in lwSelf.names():
-            if unitName not in lwOther.names():
-                elSelf  = lwSelf.get_elem_by_name(unitName)
+        for msr in msrSelf:
+            if msr not in msrOther:
+                elSelf  = lwSelf.get_elem_by_measure(msr)
                 side = elSelf.rational.intSign()
                 if side == 0:
                     continue
@@ -415,7 +446,7 @@ class Converter:
     
     def __init__(self) -> None:
         self.__rates    = {}    # list of dictionaries, contains rates to convert one measure to another
-        self.__units = []       # list of sets, every set contains "line" (unordered) of units of one context
+        self.__units = []       # ??UNNECESSARY?? list of sets, every set contains "line" (unordered) of units of one context
         self.__ranged   = []    # ranged (sorted from "minimal" to "maximal") list of units' names (all-in-one)
         self.__isRanged = False # True, if ranged was really sorted. When rate are modifyed, sets to False
 
@@ -448,6 +479,7 @@ class Converter:
         return(self.__ranged)
 
     def get_unitSet(self, inName):
+        # unused
 
         """return set where the inName is"""
 
@@ -457,6 +489,7 @@ class Converter:
         return None
 
     def get_unitList(self, inName):
+        # unused
 
         """return (ordered) list of inName's set"""
 

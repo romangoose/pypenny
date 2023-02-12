@@ -226,6 +226,8 @@ class main:
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
+        elif op == '#':
+            self.__register = self.__converter.convert_to_lowest(self.__register, self.__register.get_measures())
         else:
             print('"' + instr + '" is incorrect')
             return False

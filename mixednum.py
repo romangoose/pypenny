@@ -124,6 +124,7 @@ class Measure:
         return(Measure(outList))
 
 
+
 class Elem:
     """the elementary part of a mixed number: a fraction having a measure"""
     def __init__(self, rational, measure = Measure()):
@@ -151,6 +152,56 @@ class Elem:
     def rational(self):
         return(self.__rational)
 
+    def reduce_measure(self, converter):
+        
+        unitSet = set(self.measure.get_parts_names())
+
+        # сортируем ranged, если еще не сортирован
+        converter.sort_ranged()
+
+        msrList = []
+        elOperative = Frac(**self.rational.dict())
+
+        for part in self.measure.list:
+            found = False
+            for base in converter.ranged:
+                baseName = base['name']
+
+                if not baseName in unitSet:
+                    # нет в именах запрошенных единиц
+                    continue
+
+                if part.name == baseName:
+                    # та же самая единица - elOperative не меняется
+                    break
+
+                rate = (part.name, baseName)
+                if rate in converter.rates.keys():
+                    
+                    # иначе если существует курс перевода
+                    found = True
+    
+                    # домножаем числовую часть временного элемента:
+                    # формируем множитель пересчета
+                    mutiplier = Frac.shorter(
+                                    numerator = converter.rates[rate]['rate']
+                                    ,denominator = converter.rates[rate]['multiplicity']
+                                )
+                    # возводим в необходимую степень
+                    if part.exponent < 0:
+                        mutiplier = mutiplier.reciprocal()
+                    for i in range(abs(part.exponent) - 1):
+                        mutiplier = mutiplier.mul(mutiplier)
+
+                    # новое промежуточное стостояние elOperative
+                    elOperative = elOperative.mul(mutiplier).reduce()
+                    msrList.append(MsrPart(baseName, part.exponent))
+                    break
+            if not found:
+                msrList.append(part)
+        return(Elem(elOperative, Measure(msrList)))
+
+        
 
 class MixedNum:
     """list of named fractions"""
@@ -285,6 +336,12 @@ class MixedNum:
                 outList.append(Elem(func(el.rational), el.measure))
             else:
                 outList.append(Elem(func(el.rational,pars), el.measure))
+        return(MixedNum(outList))
+
+    def reduce_measures(self, converter):
+        outList = []
+        for el in self.list:
+            outList.append(el.reduce_measure(converter))
         return(MixedNum(outList))
 
     def times(self, other, converter):
@@ -644,21 +701,20 @@ class Converter:
         unConverted = []
 
         for el in mixedNum.list:
+            elReduce = el.reduce_measure(self)
             # признак того, полностью ли конвертировались все части единицы у элемента
             # по умолчанию равен истине, при неудаче в одном жлементе сбрасывается в ложь
             convertComplete = True
             # временный элемент, в котором будут заменяться и пересчитываться единицы
-            elOperative = Elem(el.rational, el.measure)
+            elOperative = Elem(elReduce.rational, elReduce.measure)
 
-            for msrPart in el.measure.list:
+            for msrPart in elReduce.reduce_measure(self).measure.list:
                 # признак того, сконвертировалась ли каждая отдельная часть единицы
                 # признак полного конвертирования есть полное логическое И
                 # всех таких признаков
                 partFound = False
                 # перебираем упорядоченный набор единиц
                 # (начиная с наименьшей)
-
-
 
                 for base in self.__ranged:
                     baseName = base['name']
@@ -720,6 +776,48 @@ class Converter:
 
         return(MixedNum(lowest))
 
+    def get_conversion_divisor(self, inElem, inMeasure):
+        # сортируем ranged, если еще не сортирован
+        self.sort_ranged()
+
+        inParts = []
+        for part in inMeasure.list:
+            expo = 1
+            if part.exponent < 0:
+                expo = -1
+            for i in range(abs(part.exponent)):
+                inParts.append(MsrPart(part.name, expo))
+
+        divisor = Frac(1)
+        for elPart in inElem.measure.list:
+            expo = 1
+            if elPart.exponent < 0:
+                expo = -1
+            for i in range(abs(elPart.exponent)):
+                found = False
+                for idx in range(len(inParts)):
+                    if inParts[idx].exponent == expo:
+                        if elPart.name == inParts[idx].name:
+                            found = True
+                            break
+                        rate = (elPart.name, inParts[idx].name)
+                        if rate in self.__rates:
+                            divisor = divisor.mul(
+                                Frac.shorter(
+                                            numerator = self.__rates[rate]['multiplicity']
+                                            ,denominator = self.__rates[rate]['rate']
+                                )
+                            )
+                            found = True
+                            break
+                if found:
+                    del inParts[idx]
+                else:
+                    return None
+        if len(inParts) == 0:
+            return divisor
+        
+        return None
 
     def convert(self, mixedNum, inMeasures):
         """heart of whole class"""
@@ -745,6 +843,28 @@ class Converter:
             # для каждой запрошенной единицы
             
             for idx in range(len(remainders)):
+                
+                divisor = self.get_conversion_divisor(remainders[idx], inMsr)
+                if divisor:
+                
+                    # получаем очередное частное
+                    quotient = remainders[idx].rational.div(divisor)
+                    # выделяем целую часть (на случай, если далее встретятся более мелкие единицы)
+                    intQuotient = Frac(quotient.mixed().intPart)
+                    # целая часть помещается в результат
+                    outList.append(Elem(intQuotient, inMsr))
+                    # остаток уменьшается
+                    remainders[idx] = Elem(remainders[idx].rational.sub(intQuotient.mul(divisor)), remainders[idx].measure)
+                    # в сырое частное помещается остаток от целой части, номинированный в текущей единице
+                    # (или целиком текущая единица, если для нее не был сформирован делитель)
+                    # в конце вычислений, если после очередной единицы
+                    # не встретится более мелкая - такие необработанные ошметки сырых частных скомпонуются с результатом
+                    quotients[idx]  = Elem(quotient.sub(intQuotient), inMsr)
+
+        outList.extend(quotients)
+        return(MixedNum(outList).pack())
+        """
+
                 # определяем делитель (по умолчанию = 1, таким и остается,
                 # если единицы равны или не удастся получить колный делитель
                 divisor = Frac(1)
@@ -756,9 +876,10 @@ class Converter:
                     # вычисляем делитель по частям
                     for numPart in remainders[idx].measure.list:
                         # для каждой части единицы очередного остатка
-                        partFound = False
+                        # partFound = False
                         
                         for inPart in inMsr.list:
+                            partFound = False
                             # для каждой части очередной входной единицы
                             if numPart == inPart:
                                 partFound = True
@@ -813,3 +934,4 @@ class Converter:
 
         outList.extend(quotients)
         return(MixedNum(outList).pack())
+        """

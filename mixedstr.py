@@ -124,7 +124,7 @@ class MixedString(FStr):
 
         return(
                 '{pos}{div}{neg}'.format(
-                    pos  = cls.__sprMul.join(positive) if len(positive) != 0 else '1'
+                    pos  = cls.__sprMul.join(positive) if len(positive) != 0 else '<>'
                     ,div = cls.__sprDiv if len(negative) != 0 else ''
                     ,neg = cls.__sprMul.join(negative) if len(negative) != 0 else ''
             )

@@ -734,6 +734,50 @@ class Converter:
 
         return True
 
+    def get_conversion_divisor(self, inElem, inMeasure):
+        # сортируем ranged, если еще не сортирован
+        self.sort_ranged()
+
+        inParts = []
+        for part in inMeasure.list:
+            expo = 1
+            if part.exponent < 0:
+                expo = -1
+            for i in range(abs(part.exponent)):
+                inParts.append(MsrPart(part.name, expo))
+
+        divisor = Frac(1)
+        for elPart in inElem.measure.list:
+            expo = 1
+            if elPart.exponent < 0:
+                expo = -1
+            for i in range(abs(elPart.exponent)):
+                found = False
+                for idx in range(len(inParts)):
+                    if inParts[idx].exponent == expo:
+                        if elPart.name == inParts[idx].name:
+                            found = True
+                            break
+                        rate = (elPart.name, inParts[idx].name)
+                        if rate in self.__rates:
+                            mult = Frac.shorter(
+                                        numerator = self.__rates[rate]['multiplicity']
+                                        ,denominator = self.__rates[rate]['rate']
+                            )
+                            if expo < 0:
+                                mult = mult.reciprocal()
+
+                            divisor = divisor.mul(mult)
+                            found = True
+                            break
+                if found:
+                    del inParts[idx]
+                else:
+                    return None
+        if len(inParts) == 0:
+            return divisor
+        
+        return None
 
     def convert_to_lowest_join(self, inMNum, inMeasures):
         lowest = self.convert_to_lowest(inMNum, inMeasures)
@@ -779,51 +823,6 @@ class Converter:
         
         #lowest.extend(unConverted)
         return(MixedNum(lowest), MixedNum(unConverted))
-
-    def get_conversion_divisor(self, inElem, inMeasure):
-        # сортируем ranged, если еще не сортирован
-        self.sort_ranged()
-
-        inParts = []
-        for part in inMeasure.list:
-            expo = 1
-            if part.exponent < 0:
-                expo = -1
-            for i in range(abs(part.exponent)):
-                inParts.append(MsrPart(part.name, expo))
-
-        divisor = Frac(1)
-        for elPart in inElem.measure.list:
-            expo = 1
-            if elPart.exponent < 0:
-                expo = -1
-            for i in range(abs(elPart.exponent)):
-                found = False
-                for idx in range(len(inParts)):
-                    if inParts[idx].exponent == expo:
-                        if elPart.name == inParts[idx].name:
-                            found = True
-                            break
-                        rate = (elPart.name, inParts[idx].name)
-                        if rate in self.__rates:
-                            mult = Frac.shorter(
-                                        numerator = self.__rates[rate]['multiplicity']
-                                        ,denominator = self.__rates[rate]['rate']
-                            )
-                            if expo < 0:
-                                mult = mult.reciprocal()
-
-                            divisor = divisor.mul(mult)
-                            found = True
-                            break
-                if found:
-                    del inParts[idx]
-                else:
-                    return None
-        if len(inParts) == 0:
-            return divisor
-        
-        return None
 
     def convert_join(self, inMNum, inMeasures):
         """alias for convert with composing result"""

@@ -239,7 +239,7 @@ class main:
                     # конвертируем остаток в исходные единицы делимого
                     # (иначе может быть неудобное представление просто из-за того,
                     # что в делимом и делителе присутствуют разные единицы даже из одного и того же сета)
-                    remainder = self.__converter.convert_unify(remainder, mInp.get_measures())                    
+                    remainder = self.__converter.convert_join(remainder, mInp.get_measures())                    
 
                 if op == '//':
                     # результат - частное

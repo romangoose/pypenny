@@ -350,7 +350,7 @@ class MixedNum:
         for el in other.list:
             if el.measure not in measures:
                 measures.append(el.measure)
-        divisor = converter.convert_to_lowest_unify(other, measures)
+        divisor = converter.convert_to_lowest_join(other, measures)
         if len(divisor.list) > 1:
             raise ValueError('divisor contains more than one measure')
 
@@ -443,8 +443,8 @@ class MixedNum:
                 measures.append(el.measure)
 
         # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
-        lwSelf  = converter.convert_to_lowest_unify(self, measures).pack()
-        lwOther = converter.convert_to_lowest_unify(other, measures).pack()
+        lwSelf  = converter.convert_to_lowest_join(self, measures).pack()
+        lwOther = converter.convert_to_lowest_join(other, measures).pack()
         if len(lwOther.__list) == 0:
             raise ZeroDivisionError('division by zero')
 
@@ -500,8 +500,8 @@ class MixedNum:
                 measures.append(el.measure)
 
         # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
-        lwSelf  = converter.convert_to_lowest_unify(self, measures).pack()
-        lwOther = converter.convert_to_lowest_unify(other, measures).pack()
+        lwSelf  = converter.convert_to_lowest_join(self, measures).pack()
+        lwOther = converter.convert_to_lowest_join(other, measures).pack()
 
         msrOther = lwOther.get_measures()
         msrSelf  = lwSelf.get_measures()
@@ -734,28 +734,20 @@ class Converter:
 
         return True
 
-    def convert_to_lowest_unify(self, inMNum, inMeasures):
+
+    def convert_to_lowest_join(self, inMNum, inMeasures):
         lowest = self.convert_to_lowest(inMNum, inMeasures)
         return(lowest[0].compose(lowest[1]))
 
     def convert_to_lowest(self, inMNum, inMeasures):
-        """
-        preliminary calculation for Convert and for methods that require casting to a single (minimal) value
-        """
-
-        """
-        unitSet = set()
-        for inMsr in inMeasures:
-            unitSet = unitSet.union(inMsr.get_parts_names())
-
-        allParts = []
-        for inMsr in inMeasures:
-            for part in inMsr.list:
-                if part not in allParts:
-                    allParts.append(part) 
-        """
-
-        # приводим элементы inMNum к наименьшей единице внутри каждого сета
+        """convert to the smallest requested measure if possible"""
+ 
+        # приводим элементы inMNum к наименьшей возможной из запрошенных
+        # (если возможно)
+        # это гарантирует конвертацию в запрошенные единицы
+        # (с последовательным выделением целых от наибольшей к меньшей)
+        # а также это необходимо для деления и сравнения
+        # (т.к. приводит к единой единице, неважно, что к наименьшей)
 
         # сортируем ranged, если еще не сортирован
         self.sort_ranged() # unused
@@ -787,81 +779,6 @@ class Converter:
         
         #lowest.extend(unConverted)
         return(MixedNum(lowest), MixedNum(unConverted))
-
-        for el in mixedNum.list:
-            elReduce = el.reduce_measure(self)
-            # признак того, полностью ли конвертировались все части единицы у элемента
-            # по умолчанию равен истине, при неудаче в одном жлементе сбрасывается в ложь
-            convertComplete = True
-            # временный элемент, в котором будут заменяться и пересчитываться единицы
-            elOperative = Elem(elReduce.rational, elReduce.measure)
-
-            for msrPart in elReduce.reduce_measure(self).measure.list:
-                # признак того, сконвертировалась ли каждая отдельная часть единицы
-                # признак полного конвертирования есть полное логическое И
-                # всех таких признаков
-                partFound = False
-                # перебираем упорядоченный набор единиц
-                # (начиная с наименьшей)
-
-                for base in self.__ranged:
-                    baseName = base['name']
-
-                    if not baseName in unitSet:
-                        # нет в именах запрошенных единиц
-                        continue
-
-                    if not MsrPart(baseName, msrPart.exponent) in allParts:
-                        # нужной степени нет в частях запрошенных единиц
-                        continue
-
-                    if msrPart.name == baseName:
-                        # та же самая единица - elOperative не меняется
-                        partFound = True
-                        break
-
-                    rate = (msrPart.name, baseName)
-                    if rate in self.__rates.keys():
-                        # иначе если существует курс перевода
-                        partFound = True
-                        # текущий elOperative будет домножен на найденный курс
-                        # а его единица будет модифицирована с учетом найденной части:
-                        
-                        # формируем новую единицу измерения, удалив исходную часть
-                        # и добавив взамен найденную:
-                        tmpParts = elOperative.measure.list[:]
-                        # !!!! здесь поиск партиции по имени оправлан, так как предварительно происходит 
-                        # редукция единиц (ее же и ПАК()??)
-                        del tmpParts[elOperative.measure.get_part_index_by_name(msrPart.name)]
-                        tmpParts.append(MsrPart(baseName, msrPart.exponent))
-                        
-                        # домножаем числовую часть временного элемента:
-                        # формируем множитель пересчета
-                        multiplier = Frac.shorter(
-                                        numerator = self.__rates[rate]['rate']
-                                        ,denominator = self.__rates[rate]['multiplicity']
-                                    )
-                        # возводим в необходимую степень
-                        multiplier = multiplier.pow(msrPart.exponent)
-
-                        # новое промежуточное стостояние elOperative
-                        elOperative = Elem(
-                                elOperative.rational.mul(multiplier).reduce()
-                                ,Measure(tmpParts)
-                            )
-                        break
-                convertComplete = convertComplete and partFound
-            if convertComplete:
-                # полностью преобразованный элемент помещаем в основной список
-                lowest.append(elOperative)
-            else:
-                # игнорируем частичную конвертацию
-                unConverted.append(el)
-
-        # кондиционные элементы просто идут первыми
-        lowest.extend(unConverted)
-
-        return(MixedNum(lowest))
 
     def get_conversion_divisor(self, inElem, inMeasure):
         # сортируем ranged, если еще не сортирован
@@ -908,23 +825,22 @@ class Converter:
         
         return None
 
-    def convert_unify(self, inMNum, inMeasures):
+    def convert_join(self, inMNum, inMeasures):
+        """alias for convert with composing result"""
         res = self.convert(inMNum, inMeasures)
         return(res[0].compose(res[1]))
 
     def convert(self, inMNum, inMeasures):
-        """heart of whole class"""
+        """convert to requested measures if possible"""
         
         # приводим к наименьшим единицам (среди запрошенных)
         lowest = self.convert_to_lowest(inMNum, inMeasures)
-        #lowest = lowest[0].compose(lowest[1])
+
+        # конвертировать будем только первый элемент кортежа
+        # т.к. только он гарантированно соответствует запрошенным единицам
+        # несконвертированную часть - добавим отдельно, аналогично convert_to_lowest
         unConverted = lowest[1]
         lowest = lowest[0]
-
-        
-
-        # ???конвертировать можно только первый элемент кортежа
-        # несконвертированное - добавлять аналогично, в отдельный результат??
 
         outList = []    # сюда будем накапливать результат
         # вспомогательные списки
@@ -944,10 +860,11 @@ class Converter:
             # для каждой запрошенной единицы
             
             for idx in range(len(remainders)):
-                
+                # для каждого остатка (изначально - элемента)
+                # получаем делитель к запрошенной единице
                 divisor = self.get_conversion_divisor(remainders[idx], inMsr)
                 if divisor:
-                
+                    # если делитель существует
                     # получаем очередное частное
                     quotient = remainders[idx].rational.div(divisor)
                     # выделяем целую часть (на случай, если далее встретятся более мелкие единицы)
@@ -964,75 +881,3 @@ class Converter:
 
         outList.extend(quotients)
         return(MixedNum(outList).pack(), unConverted)
-        """
-
-                # определяем делитель (по умолчанию = 1, таким и остается,
-                # если единицы равны или не удастся получить колный делитель
-                divisor = Frac(1)
-                # признак того, что делитель сформирован на основании
-                # всех частей единицы
-                divisorComplete = True
-                if inMsr != remainders[idx].measure:
-                    # если входящая единица не равна единице элемента
-                    # вычисляем делитель по частям
-                    for numPart in remainders[idx].measure.list:
-                        # для каждой части единицы очередного остатка
-                        # partFound = False
-                        
-                        for inPart in inMsr.list:
-                            partFound = False
-                            # для каждой части очередной входной единицы
-                            if numPart == inPart:
-                                partFound = True
-                                continue
-                       
-                            if abs(numPart.exponent) != abs(inPart.exponent):
-                                # incomparable
-                                continue
-
-                            rate = (numPart.name, inPart.name)
-                            if not rate in self.__rates.keys():
-                                continue
-                            # если существует курс перевода
-                            partFound = True
-
-                            # формируем множитель, на который будет домножен делитель
-                            mutiplier = Frac.shorter(
-                                            numerator = self.__rates[rate]['multiplicity']
-                                            ,denominator = self.__rates[rate]['rate']
-                                        )
-                            # возводим в необходимую степень
-                            if numPart.exponent < 0:
-                                mutiplier = mutiplier.reciprocal()
-                            for i in range(abs(numPart.exponent) - 1):
-                                mutiplier = mutiplier.mul(mutiplier)
-
-                            # новое промежуточное стостояние делителя
-                            divisor = divisor.mul(mutiplier)
-
-                        divisorComplete = divisorComplete and partFound
-
-                if divisorComplete:
-                    # делитель для очередного элемента числа полностью пересчитан
-                    # относительно очредной входящей единицы:
-                    # обсчитываем вспомогательные данные 
-                    # и формируем очередную часть результата
-                    # иначе их текущие состояния полностью сохраняются для следующей итерации
-
-                    # получаем очередное частное
-                    quotient = remainders[idx].rational.div(divisor)
-                    # выделяем целую часть (на случай, если далее встретятся более мелкие единицы)
-                    intQuotient = Frac(quotient.mixed().intPart)
-                    # целая часть помещается в результат
-                    outList.append(Elem(intQuotient, inMsr))
-                    # остаток уменьшается
-                    remainders[idx] = Elem(remainders[idx].rational.sub(intQuotient.mul(divisor)), remainders[idx].measure)
-                    # в сырое частное помещается остаток от целой части, номинированный в текущей единице
-                    # (или целиком текущая единица, если для нее не был сформирован делитель)
-                    # в конце вычислений, если после очередной единицы
-                    # не встретится более мелкая - такие необработанные ошметки сырых частных скомпонуются с результатом
-                    quotients[idx]  = Elem(quotient.sub(intQuotient), inMsr)
-
-        outList.extend(quotients)
-        return(MixedNum(outList).pack())
-        """

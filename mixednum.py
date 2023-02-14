@@ -64,17 +64,6 @@ class Measure:
             idx = self.get_part_index_by_name(el.name)
 
             self.__list.append(MsrPart(el.name, el.exponent))
-            """
-            idx = self.get_part_index_by_name(el.name)
-            if idx == None:
-                self.__list.append(MsrPart(el.name, el.exponent))
-            else:
-                newExpo = el.exponent + self.__list[idx].exponent
-                if newExpo:
-                    self.__list[idx] = MsrPart(self.__list[idx].name, newExpo)
-                else:
-                    del self.__list[idx]
-            """
 
     def __str__(self):
         return(','.join([str(i) for i in self.__list]))
@@ -105,18 +94,6 @@ class Measure:
                 return False
 
         return True
-        """
-        sN = self.get_parts_names()
-        oN = other.get_parts_names()
-        allN = {*sN,*oN}
-        # ЗДЕСЬ м:3/м:2 1= м:3/м:2
-        if len(allN) == len(sN) == len(oN):
-            for name in allN:
-                if self.get_part_by_name(name) != other.get_part_by_name(name):
-                    return False
-            return True
-        return False
-        """
 
     def __neg__(self):
         outList = []
@@ -354,21 +331,6 @@ class MixedNum:
         if len(divisor.list) > 1:
             raise ValueError('divisor contains more than one measure')
 
-        """
-        # flip the elements' numbers
-        # may causes divizion by zero
-        divisor = divisor.with_rationals(Frac.reciprocal)
-
-        # finally flip the units of measure
-        outList = []
-        for el in divisor.list:
-            partList = []
-            for part in el.measure.list:
-                partList.append(MsrPart(part.name, -part.exponent))
-            outList.append(Elem(el.rational, Measure(partList)))
-        
-        return(self.mul(MixedNum(outList)))
-        """
         return(self.mul(divisor.reciprocal()))
 
     def pack(self):
@@ -801,27 +763,28 @@ class Converter:
 
         for el in inMNum.list:
             divisor = None
-            cMsr = None
-            for msr in inMeasures:
-                cDiv = self.get_conversion_divisor(el, msr)
+            chosenMsr = None
+            for inMsr in inMeasures:
+                opDiv = self.get_conversion_divisor(el, inMsr) # дробь или не существует
                 if (
-                    cDiv
+                    opDiv # если существует
                     and (
-                            not divisor
-                            # если текущий делитель МЕНЬШЕ сохраненного
-                            # значит, он переведет текущее число к меньшей еинице
-                            # и делитель надо перезаписать на него
-                            or cDiv.intComp(divisor) < 0
+                            not divisor # делитель еще не инициализирован
+                            # или:
+                            # если текущий делитель меньше сохраненного
+                            # значит, он приведет число к большему значению 
+                            # (что соответствует меньшей единице)
+                            or opDiv.intComp(divisor) < 0
                     )
                 ):
-                    divisor = Frac(**cDiv.dict())
-                    cMsr = msr
+                    # перезаписываем делитель и запоминаем текущую единицу
+                    divisor = Frac(**opDiv.dict())
+                    chosenMsr = inMsr
             if divisor:
-                lowest.append(Elem(el.rational.div(divisor),cMsr))
+                lowest.append(Elem(el.rational.div(divisor),chosenMsr))
             else:
                 unConverted.append(el)
         
-        #lowest.extend(unConverted)
         return(MixedNum(lowest), MixedNum(unConverted))
 
     def convert_join(self, inMNum, inMeasures):

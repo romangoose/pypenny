@@ -94,7 +94,12 @@ class main:
         measures = []
         for el in strMeasures.split(self.__sprFld):
             measures.append(MStr.measure_from_string(el.strip()))
-        mNum = self.normalize(self.__converter.convert(self.__register, measures))
+
+        res = self.__converter.convert(self.__register, measures)
+        if len(res) != 0:
+            print('не конвертировано: ', MStr.to_string(res[1]))
+
+        mNum = self.normalize(res[0].compose(res[1]))
         self.__register = self.normalize(mNum)
         self.show_output(' => ', MNum.MixedNum())
 
@@ -131,6 +136,22 @@ class main:
         """Выводит общую ранжированную таблицу единиц."""
         for el in self.__converter.ranged:
             print('name: ', el['name'], ', rational: ', str(el['rational']))
+
+    def reduce_measures(self, pars = None):
+        self.__register = self.__register.reduce_measures(self.__converter)
+        self.__register = self.normalize(self.__register)
+        self.show_output()
+
+    def pack_measure(self, pars = None):
+        self.__register = self.__register.reduce_measures(self.__converter).pack_measures()
+        self.__register = self.normalize(self.__register)
+        self.show_output()
+
+    def invert(self, pars = None):
+        self.__register = self.__register.reciprocal()
+        self.__register = self.normalize(self.__register)
+        self.show_output()
+
 
 # ==========]METHODS
 
@@ -215,6 +236,11 @@ class main:
                     quotient  = MNum.MixedNum((MNum.Elem(result[0]),))
                     remainder = result[1]
 
+                    # конвертируем остаток в исходные единицы делимого
+                    # (иначе может быть неудобное представление просто из-за того,
+                    # что в делимом и делителе присутствуют разные единицы даже из одного и того же сета)
+                    remainder = self.__converter.convert_unify(remainder, mInp.get_measures())                    
+
                 if op == '//':
                     # результат - частное
                     print ('Остаток: ', MStr.to_string(self.normalize(remainder)))
@@ -226,8 +252,6 @@ class main:
             except ZeroDivisionError as err:
                 print(str(err))
                 return False
-        elif op == '#':
-            self.__register = self.__converter.convert_to_lowest(self.__register, self.__register.get_measures())
         else:
             print('"' + instr + '" is incorrect')
             return False
@@ -337,6 +361,10 @@ Multiplicity;   Source;             Rate;           Target;
             ,'CONVERT' : self.show_convert
             ,'COMPARE' : self.show_compare
 
+            ,'PACK'    : self.pack_measure
+            ,'REDUCE'  : self.reduce_measures
+            ,'INVERT'  : self.invert
+
             ,'RATETAB':self.show_rates
             ,'UNITS'  :self.show_units
             ,'RANGED':self.show_ranged
@@ -362,6 +390,13 @@ Multiplicity;   Source;             Rate;           Target;
             ,'КОНВ'   : 'CONVERT'
             ,'COMP'   : 'COMPARE'
             ,'СРАВ'   : 'COMPARE'
+            ,'REDUCE' : 'REDUCE'
+            ,'СОКР'   : 'REDUCE'
+            ,'INV'    : 'INVERT'
+            ,'ИНВ'    : 'INVERT'
+            ,'PACK'   : 'PACK'
+            ,'ПАК'    : 'PACK'
+
 
 
             ,'TAB':'RATETAB'

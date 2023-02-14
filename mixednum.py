@@ -60,6 +60,11 @@ class Measure:
                 raise ValueError("incorrect measure's part")
             if el.name == '':
                 continue
+
+            idx = self.get_part_index_by_name(el.name)
+
+            self.__list.append(MsrPart(el.name, el.exponent))
+            """
             idx = self.get_part_index_by_name(el.name)
             if idx == None:
                 self.__list.append(MsrPart(el.name, el.exponent))
@@ -69,22 +74,49 @@ class Measure:
                     self.__list[idx] = MsrPart(self.__list[idx].name, newExpo)
                 else:
                     del self.__list[idx]
+            """
 
     def __str__(self):
         return(','.join([str(i) for i in self.__list]))
 
     def __eq__(self, other):
+        def sign(expo):
+            return(expo > 0)
+        
         if not isinstance(other, Measure):
             return False
+
+        sParts = {}
+        for part in self.__list:
+            expo = sParts.get((part.name, part.exponent))
+
+            if expo and (sign(expo) == sign(part.exponent)):
+                sParts[(part.name, sign(expo))] = expo + part.exponent
+            else:
+                sParts[(part.name, sign(part.exponent))] = part.exponent
+        
+        for part in other.__list:
+            if not (part.name,sign(part.exponent)) in sParts:
+                return False
+            sParts[(part.name, sign(part.exponent))] = sParts[(part.name, sign(part.exponent))] - part.exponent
+
+        for part in sParts:
+            if sParts[part] != 0:
+                return False
+
+        return True
+        """
         sN = self.get_parts_names()
         oN = other.get_parts_names()
         allN = {*sN,*oN}
+        # ЗДЕСЬ м:3/м:2 1= м:3/м:2
         if len(allN) == len(sN) == len(oN):
             for name in allN:
                 if self.get_part_by_name(name) != other.get_part_by_name(name):
                     return False
             return True
         return False
+        """
 
     def __neg__(self):
         outList = []
@@ -116,13 +148,36 @@ class Measure:
         return(self.__list[idx])
 
     def combine(self, *others):
-        """union (multiplication with the summation  of the same-name exponents) lists of entering parts of measure"""
+        """union lists of entering parts of measure"""
         outList = []
         outList.extend(self.__list)
         for el in others:
             outList.extend(el.list)
         return(Measure(outList))
 
+    def pack(self):
+        """
+        summation of the same-name exponents, removing zeroes
+        """
+
+        def get_index(inList, inName):
+            for idx in range(len(inList)):
+                if inList[idx].name == inName:
+                    return idx
+            return None
+
+        outList = []
+        for el in self.__list:
+            idx = get_index(outList, el.name)
+            if idx == None:
+                outList.append(MsrPart(el.name, el.exponent))
+            else:
+                newExpo = el.exponent + outList[idx].exponent
+                if newExpo:
+                    outList[idx] = MsrPart(outList[idx].name, newExpo)
+                else:
+                    del outList[idx]
+        return(Measure(outList))
 
 
 class Elem:
@@ -183,25 +238,21 @@ class Elem:
     
                     # домножаем числовую часть временного элемента:
                     # формируем множитель пересчета
-                    mutiplier = Frac.shorter(
+                    multiplier = Frac.shorter(
                                     numerator = converter.rates[rate]['rate']
                                     ,denominator = converter.rates[rate]['multiplicity']
                                 )
                     # возводим в необходимую степень
-                    if part.exponent < 0:
-                        mutiplier = mutiplier.reciprocal()
-                    for i in range(abs(part.exponent) - 1):
-                        mutiplier = mutiplier.mul(mutiplier)
+                    multiplier = multiplier.pow(part.exponent)
 
                     # новое промежуточное стостояние elOperative
-                    elOperative = elOperative.mul(mutiplier).reduce()
+                    elOperative = elOperative.mul(multiplier).reduce()
                     msrList.append(MsrPart(baseName, part.exponent))
                     break
             if not found:
                 msrList.append(part)
         return(Elem(elOperative, Measure(msrList)))
-
-        
+       
 
 class MixedNum:
     """list of named fractions"""
@@ -215,7 +266,7 @@ class MixedNum:
             if idx == None:
                 self.__list.append(Elem(el.rational, el.measure))
             else:
-                self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), el.measure)
+                self.__list[idx] = Elem(self.__list[idx].rational.add(el.rational), self.__list[idx].measure)
 
     def __str__(self):
         return(','.join([str(i) for i in self.__list]))
@@ -299,10 +350,11 @@ class MixedNum:
         for el in other.list:
             if el.measure not in measures:
                 measures.append(el.measure)
-        divisor = converter.convert_to_lowest(other, measures)
+        divisor = converter.convert_to_lowest_unify(other, measures)
         if len(divisor.list) > 1:
             raise ValueError('divisor contains more than one measure')
 
+        """
         # flip the elements' numbers
         # may causes divizion by zero
         divisor = divisor.with_rationals(Frac.reciprocal)
@@ -316,7 +368,8 @@ class MixedNum:
             outList.append(Elem(el.rational, Measure(partList)))
         
         return(self.mul(MixedNum(outList)))
-
+        """
+        return(self.mul(divisor.reciprocal()))
 
     def pack(self):
         """remove zero-elements"""
@@ -324,6 +377,17 @@ class MixedNum:
         for el in self.__list:
             if not el.rational.isZero():
                 outList.append(Elem(el.rational, el.measure))
+        return(MixedNum(outList))
+
+    def pack_measures(self):
+        outList = []
+        for el in self.__list:
+            outList.append(
+                Elem(
+                    el.rational
+                    ,el.measure.pack()
+                )
+            )
         return(MixedNum(outList))
 
     def with_rationals(self, func, pars=None):
@@ -374,13 +438,13 @@ class MixedNum:
 
         # подготавливаем общий список всех единиц 
         measures = []
-        for el in *self.list, *other.list:
+        for el in (*self.list, *other.list):
             if el.measure not in measures:
                 measures.append(el.measure)
 
         # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
-        lwSelf  = converter.convert_to_lowest(self, measures).pack()
-        lwOther = converter.convert_to_lowest(other, measures).pack()
+        lwSelf  = converter.convert_to_lowest_unify(self, measures).pack()
+        lwOther = converter.convert_to_lowest_unify(other, measures).pack()
         if len(lwOther.__list) == 0:
             raise ZeroDivisionError('division by zero')
 
@@ -414,11 +478,6 @@ class MixedNum:
         # вычитаем из делимого делитель, умноженный на найденное минимальное частное
         remainder = self.compose(other.with_rationals(Frac.mul, minQuotient).with_rationals(Frac.opposite))
 
-        # конвертируем остаток в исходные единицы делимого
-        # (иначе может быть неудобное представление просто из-за того,
-        # что в делимом и делителе присутствуют разные единицы даже из одного и того же сета)
-        remainder = converter.convert(remainder, self.get_measures())
-
         return(minQuotient, remainder)
 
     def intComp(self, other, converter):
@@ -436,13 +495,13 @@ class MixedNum:
 
         # подготавливаем общий список всех единиц 
         measures = []
-        for el in *self.list, *other.list:
+        for el in (*self.list, *other.list):
             if el.measure not in measures:
                 measures.append(el.measure)
 
         # преобразуем делимое и делитель к наименьшим единицам в существующих сетах единиц
-        lwSelf  = converter.convert_to_lowest(self, measures).pack()
-        lwOther = converter.convert_to_lowest(other, measures).pack()
+        lwSelf  = converter.convert_to_lowest_unify(self, measures).pack()
+        lwOther = converter.convert_to_lowest_unify(other, measures).pack()
 
         msrOther = lwOther.get_measures()
         msrSelf  = lwSelf.get_measures()
@@ -675,13 +734,16 @@ class Converter:
 
         return True
 
+    def convert_to_lowest_unify(self, inMNum, inMeasures):
+        lowest = self.convert_to_lowest(inMNum, inMeasures)
+        return(lowest[0].compose(lowest[1]))
 
-
-    def convert_to_lowest(self, mixedNum, inMeasures):
+    def convert_to_lowest(self, inMNum, inMeasures):
         """
         preliminary calculation for Convert and for methods that require casting to a single (minimal) value
         """
 
+        """
         unitSet = set()
         for inMsr in inMeasures:
             unitSet = unitSet.union(inMsr.get_parts_names())
@@ -691,14 +753,40 @@ class Converter:
             for part in inMsr.list:
                 if part not in allParts:
                     allParts.append(part) 
+        """
 
-        # приводим элементы MixedNum к наименьшей единице внутри каждого сета
+        # приводим элементы inMNum к наименьшей единице внутри каждого сета
 
         # сортируем ranged, если еще не сортирован
-        self.sort_ranged()
+        self.sort_ranged() # unused
 
         lowest      = []
         unConverted = []
+
+        for el in inMNum.list:
+            divisor = None
+            cMsr = None
+            for msr in inMeasures:
+                cDiv = self.get_conversion_divisor(el, msr)
+                if (
+                    cDiv
+                    and (
+                            not divisor
+                            # если текущий делитель МЕНЬШЕ сохраненного
+                            # значит, он переведет текущее число к меньшей еинице
+                            # и делитель надо перезаписать на него
+                            or cDiv.intComp(divisor) < 0
+                    )
+                ):
+                    divisor = Frac(**cDiv.dict())
+                    cMsr = msr
+            if divisor:
+                lowest.append(Elem(el.rational.div(divisor),cMsr))
+            else:
+                unConverted.append(el)
+        
+        #lowest.extend(unConverted)
+        return(MixedNum(lowest), MixedNum(unConverted))
 
         for el in mixedNum.list:
             elReduce = el.reduce_measure(self)
@@ -742,24 +830,23 @@ class Converter:
                         # формируем новую единицу измерения, удалив исходную часть
                         # и добавив взамен найденную:
                         tmpParts = elOperative.measure.list[:]
+                        # !!!! здесь поиск партиции по имени оправлан, так как предварительно происходит 
+                        # редукция единиц (ее же и ПАК()??)
                         del tmpParts[elOperative.measure.get_part_index_by_name(msrPart.name)]
                         tmpParts.append(MsrPart(baseName, msrPart.exponent))
                         
                         # домножаем числовую часть временного элемента:
                         # формируем множитель пересчета
-                        mutiplier = Frac.shorter(
+                        multiplier = Frac.shorter(
                                         numerator = self.__rates[rate]['rate']
                                         ,denominator = self.__rates[rate]['multiplicity']
                                     )
                         # возводим в необходимую степень
-                        if msrPart.exponent < 0:
-                            mutiplier = mutiplier.reciprocal()
-                        for i in range(abs(msrPart.exponent) - 1):
-                            mutiplier = mutiplier.mul(mutiplier)
+                        multiplier = multiplier.pow(msrPart.exponent)
 
                         # новое промежуточное стостояние elOperative
                         elOperative = Elem(
-                                elOperative.rational.mul(mutiplier).reduce()
+                                elOperative.rational.mul(multiplier).reduce()
                                 ,Measure(tmpParts)
                             )
                         break
@@ -802,12 +889,14 @@ class Converter:
                             break
                         rate = (elPart.name, inParts[idx].name)
                         if rate in self.__rates:
-                            divisor = divisor.mul(
-                                Frac.shorter(
-                                            numerator = self.__rates[rate]['multiplicity']
-                                            ,denominator = self.__rates[rate]['rate']
-                                )
+                            mult = Frac.shorter(
+                                        numerator = self.__rates[rate]['multiplicity']
+                                        ,denominator = self.__rates[rate]['rate']
                             )
+                            if expo < 0:
+                                mult = mult.reciprocal()
+
+                            divisor = divisor.mul(mult)
                             found = True
                             break
                 if found:
@@ -819,11 +908,23 @@ class Converter:
         
         return None
 
-    def convert(self, mixedNum, inMeasures):
+    def convert_unify(self, inMNum, inMeasures):
+        res = self.convert(inMNum, inMeasures)
+        return(res[0].compose(res[1]))
+
+    def convert(self, inMNum, inMeasures):
         """heart of whole class"""
         
         # приводим к наименьшим единицам (среди запрошенных)
-        lowest = self.convert_to_lowest(mixedNum, inMeasures)
+        lowest = self.convert_to_lowest(inMNum, inMeasures)
+        #lowest = lowest[0].compose(lowest[1])
+        unConverted = lowest[1]
+        lowest = lowest[0]
+
+        
+
+        # ???конвертировать можно только первый элемент кортежа
+        # несконвертированное - добавлять аналогично, в отдельный результат??
 
         outList = []    # сюда будем накапливать результат
         # вспомогательные списки
@@ -862,7 +963,7 @@ class Converter:
                     quotients[idx]  = Elem(quotient.sub(intQuotient), inMsr)
 
         outList.extend(quotients)
-        return(MixedNum(outList).pack())
+        return(MixedNum(outList).pack(), unConverted)
         """
 
                 # определяем делитель (по умолчанию = 1, таким и остается,

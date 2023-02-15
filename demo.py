@@ -132,13 +132,6 @@ class main:
         """Выводит списки единиц из таблицы курсов, изолированные по ""сетам""."""
         print(self.__converter.units)
 
-    '''
-    def show_ranged(self, pars = None):
-        """Выводит общую ранжированную таблицу единиц."""
-        for el in self.__converter.ranged:
-            print('name: ', el['name'], ', rational: ', str(el['rational']))
-    '''
-
     def reduce_measures(self, pars = None):
         self.__register = self.__register.reduce_measures(self.__converter)
         self.__register = self.normalize(self.__register)
@@ -369,7 +362,6 @@ Multiplicity;   Source;             Rate;           Target;
 
             ,'RATETAB':self.show_rates
             ,'UNITS'  :self.show_units
-            ##,'RANGED':self.show_ranged
 
             ,'DECIMAL' : self.show_decimal
         }
@@ -405,8 +397,6 @@ Multiplicity;   Source;             Rate;           Target;
             ,'ТАБ':'RATETAB'
             ,'UNI':'UNITS'
             ,'ЕД' :'UNITS'
-            ##,'RANG':'RANGED'
-            ##,'РАНГ':'RANGED'
 
             ,'DEC'    : 'DECIMAL'
             ,'ДЕС'    : 'DECIMAL'

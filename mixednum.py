@@ -106,29 +106,6 @@ class Measure:
     def list(self):
         return(self.__list)
 
-    '''
-    # после исправления метода reduce_measures может быть удален
-    def get_parts_names(self):
-        """all part's names of the measure"""
-        outList = []
-        for el in self.__list:
-            outList.append(el.name)
-        return outList
-
-
-    def get_part_index_by_name(self, inName):
-        for idx in range(len(self.__list)):
-            if self.__list[idx].name == inName:
-                return idx
-        return None
-
-    def get_part_by_name(self, inName):
-        idx = self.get_part_index_by_name(inName)
-        if idx == None:
-            return None
-        return(self.__list[idx])
-    '''
-
     def combine(self, *others):
         """union lists of entering parts of measure"""
         outList = []
@@ -189,62 +166,10 @@ class Elem:
     def rational(self):
         return(self.__rational)
 
-    '''
-    def reduce_measure(self, converter):
-
-        # использует устаревший метод перебора по именам (unitSet)
-        # и объект __range, более нигде не используемый
-        
-        unitSet = set(self.measure.get_parts_names())
-
-        # сортируем ranged, если еще не сортирован
-        converter.sort_ranged()
-
-        msrList = []
-        elOperative = Frac(**self.rational.dict())
-
-        for part in self.measure.list:
-            found = False
-            for base in converter.ranged:
-                baseName = base['name']
-
-                if not baseName in unitSet:
-                    # нет в именах запрошенных единиц
-                    continue
-
-                if part.name == baseName:
-                    # та же самая единица - elOperative не меняется
-                    break
-
-                rate = (part.name, baseName)
-                if rate in converter.rates.keys():
-                    
-                    # иначе если существует курс перевода
-                    found = True
-    
-                    # домножаем числовую часть временного элемента:
-                    # формируем множитель пересчета
-                    multiplier = Frac.shorter(
-                                    numerator = converter.rates[rate]['rate']
-                                    ,denominator = converter.rates[rate]['multiplicity']
-                                )
-                    # возводим в необходимую степень
-                    multiplier = multiplier.pow(part.exponent)
-
-                    # новое промежуточное стостояние elOperative
-                    elOperative = elOperative.mul(multiplier).reduce()
-                    msrList.append(MsrPart(baseName, part.exponent))
-                    break
-            if not found:
-                msrList.append(part)
-        return(Elem(elOperative, Measure(msrList)))
-    '''       
-
 class MixedNum:
     """list of named fractions"""
     def __init__(self, inList = []):
         self.__list = []
-        # for lst in inLists:
         for el in inList:
             if not isinstance(el, Elem):
                 raise ValueError("incorrect element of mixed number")
@@ -379,13 +304,6 @@ class MixedNum:
         for el in self.list:
             outMeasures.append(converter.unify_measure(el.measure))
         return(converter.convert_join(self, outMeasures))
-        '''
-        outList = []
-        for el in self.list:
-            # outList.append(el.reduce_measure(converter))
-            outList.append(Elem())
-        return(MixedNum(outList))
-        '''
 
     def times(self, other, converter):
 
@@ -533,11 +451,6 @@ class Converter:
     # вспомогательные объекты:
     # units - список множеств, отдельное множество - это перечень базовых единиц, относящихся к одному контексту
     # (то есть таких, которые могут быть взаимно выражены друг через друга)
-    # ranged - список всех единиц, общий (не разделенный по сетам), 
-    # который перед конвертацией должен быть отсортирован в восходящем порядке
-    # (в итоге для каждого сета будет известен упорядоченный список единиц)
-    # isRanged - соответственно, признак отсортированности, 
-    # который сбрасывается при любом изменении курсов 
     
     def __init__(self) -> None:
         self.__rates    = {}    # list of dictionaries, contains rates to convert one measure to another
@@ -547,10 +460,6 @@ class Converter:
         # кроме того, это единственный объект, который различает отдельные "линейки", полезен для пользователя
         # надо ли? теоретически изолированные сеты можно получить рассчетным методом по таблице курсов)
 
-
-        #self.__ranged   = []    # ranged (sorted from "minimal" to "maximal") list of units' names (all-in-one)
-        #self.__isRanged = False # True, if ranged was really sorted. When rate are modifyed, sets to False
-
     @property
     def rates(self):
         return(self.__rates)
@@ -558,58 +467,6 @@ class Converter:
     @property
     def units(self):
         return(self.__units)
-
-    '''
-    def sort_ranged(self):
-
-        """sort ranged if not yet"""
-
-        if not self.__isRanged:
-            # bubble sort (ascending)
-            done = False
-            while not done:
-                done = True
-                for idx in range(1,len(self.__ranged)):
-                    if (self.__ranged[idx]['rational'].intComp(self.__ranged[idx-1]['rational']) < 0):
-                        self.__ranged[idx], self.__ranged[idx-1] = self.__ranged[idx-1], self.__ranged[idx]
-                        done = False
-            self.__isRanged = True
-    '''
-
-    '''
-    @property
-    def ranged(self):
-        self.sort_ranged()
-        return(self.__ranged)
-    '''
-    '''
-    def get_unitSet(self, inName):
-        # unused
-
-        """return set where the inName is"""
-
-        for el in self.__units:
-            if inName in el:
-                return el
-        return None
-
-    def get_unitList(self, inName):
-        # unused
-
-        """return (ordered) list of inName's set"""
-
-        mSet = self.get_unitSet(inName)
-        if mSet == None:
-            return None
-
-        self.sort_ranged()
-        outList = []
-        for el in self.ranged:
-            if el['name'] in mSet:
-                outList.append(el['name'])
-        return (outList)
-        
-    '''
 
     def add_rate(self, source, target, multiplicity, rate):
         """add main and dependent (cross and reverse) rates"""
@@ -632,21 +489,6 @@ class Converter:
             outList.append(crSet)
             self.__units = outList
             return self.__units[-1]
-
-        '''
-        def update_ranged(inName, rate, multiplicity):
-            frac = Frac.shorter(rate, multiplicity)
-            for idx in range(len(self.__ranged)):
-                if self.__ranged[idx]['name'] == inName:
-                    # if found
-                    if (self.__ranged[idx]['rational'].intComp(frac) > 0):
-                        # replace by lesser
-                        self.__ranged[idx]['rational'] = frac
-                    return None
-            # not found - append
-            self.__ranged.append({'name' : inName, 'rational' : frac})
-            return None
-        '''
 
         def add_cross_rate(base, cross, unitSet, depth = False):
             """cross-rates"""
@@ -690,8 +532,7 @@ class Converter:
                                                 'multiplicity': multiplicity
                                                 ,'rate':        rate
                                             }
-            ##update_ranged(source, rate, multiplicity)
- 
+
             # reverse record
             if not (target, source) in self.__rates:
                 add_record(target, source, unitSet, rate, multiplicity)
@@ -720,7 +561,6 @@ class Converter:
 
         unitSet = update_units(source, target)
 
-        ##self.__isRanged = False # сбрасываем признак сортировки 
         add_record(source, target, unitSet, multiplicity, rate)
         add_cross_rate(source, target, unitSet)
         add_cross_rate(target, source, unitSet)
@@ -744,8 +584,6 @@ class Converter:
 
     def get_measure_rate(self, source, target):
         """multiplier that converts the source measure to the target OR None"""
-        ### сортируем ranged, если еще не сортирован
-        ##self.sort_ranged()
 
         # все части входящей единицы, разбитые "по одной" степени
         trgParts = []
@@ -778,20 +616,6 @@ class Converter:
                             outMult = outMult.mul(opMult)
                             found = True
                             break
-                        '''
-                        rate = (srcPart.name, trgParts[idx].name)
-                        if rate in self.__rates:
-                            opMult = Frac.shorter(
-                                        numerator = self.__rates[rate]['multiplicity']
-                                        ,denominator = self.__rates[rate]['rate']
-                            )
-                            if expo < 0:
-                                opMult = opMult.reciprocal()
-
-                            outMult = outMult.mul(opMult)
-                            found = True
-                            break
-                        '''
                 if found:
                     # удаляем "использованную" часть входной единицы
                     del trgParts[idx]
@@ -835,9 +659,6 @@ class Converter:
         # (с последовательным выделением целых от наибольшей к меньшей)
         # а также это необходимо для деления и сравнения
         # (т.к. приводит к единой единице, неважно, что к наименьшей)
-
-        ### сортируем ranged, если еще не сортирован
-        ##self.sort_ranged() # unused
 
         lowest      = []
         unConverted = []

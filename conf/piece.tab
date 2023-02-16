@@ -1,0 +1,14 @@
+Multiplicity;	Source;		Rate;		Target
+1;				pair;		2;			pc
+1;				dozen;		12;			pc
+1;				gross;		12;			dozen
+
+1;				шт;			1;			pc
+1;				пара;		1;			pair
+1;				дюжина;		1;			dozen
+1;				гросс;		1;			gross
+1;				масса;		12;			гросс
+
+1;				штука;		1;			шт
+1;				сорок;		40;			шт
+1;				копа;		60;			шт

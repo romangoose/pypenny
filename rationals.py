@@ -198,6 +198,20 @@ class Rational:
             raise ZeroDivisionError('Division by zero')
         return self.mul(other.reciprocal())
 
+    def pow(self, exponent):
+        if not type(exponent) is int:
+            raise ValueError('exponent is not int')
+        if exponent == 0:
+            return(Rational(1))
+        multiplicand = Rational(**self.dict())
+        if exponent < 0:
+            multiplicand = multiplicand.reciprocal()
+        if abs(exponent) == 1:
+            return (multiplicand)
+        multiplier   = Rational(**multiplicand.dict())
+        for i in range(abs(exponent) - 1):
+            multiplicand = multiplicand.mul(multiplier)
+        return(multiplicand)
 
     @staticmethod
     def shorter(numerator, denominator):

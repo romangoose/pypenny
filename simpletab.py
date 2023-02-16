@@ -63,6 +63,7 @@ class SimpleTab:
                     continue
                 
                 if len(fields) < lenHeader:
+                    print('invalid row: ', line)
                     continue
 
                 for idx in range(lenHeader):

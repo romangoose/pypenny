@@ -70,9 +70,9 @@ class main:
 """
         outList = []
         for elem in self.__register.list:
-            outList.append('{dec}{name}'.format(
+            outList.append('{dec}{msr}'.format(
                 dec  = Frac.decimal(elem.rational)
-                ,name = (' ' + elem.name if elem.name else '')
+                ,msr = (' ' + MStr.measure_to_string(elem.measure) if elem.measure != MNum.Measure() else '')
                 )
             )
         print ((self.__sprFld + ' ').join(outList))
@@ -85,7 +85,7 @@ class main:
         self.__converter = MNum.Converter()
 
     def show_convert(self, strMeasures):
-        """Конвертирует число из текущего регистра в уазанные единицы и помещает результат в регистр.
+        """Конвертирует число из текущего регистра в указанные единицы и помещает результат в регистр.
 Настройка конвертации задается параметром в виде списка единиц, разделенных аналогично частям смешанного числа (см. ФОРМ).
 Если в конвертируемом числе присутствуют части с единицами, которые не могут быть приведены к указанным настройкам, эти части выводятся в конце как есть.
 Для конвертации необходима установка курсов (см. КУРС).
@@ -93,15 +93,28 @@ class main:
 """
         measures = []
         for el in strMeasures.split(self.__sprFld):
-            measures.append(el.strip())
-        mNum = self.normalize(self.__converter.convert(self.__register, measures))
+            try:
+                measures.append(MStr.measure_from_string(el.strip()))
+            except ValueError as err:
+                print(err)
+                return False
+
+        res = self.__converter.convert(self.__register, measures)
+        if len(res) != 0:
+            print('не конвертировано: ', MStr.to_string(res[1]))
+
+        mNum = self.normalize(res[0].compose(res[1]))
         self.__register = self.normalize(mNum)
         self.show_output(' => ', MNum.MixedNum())
 
     def show_compare(self, strNum):
         """Сравнивает текущее число в регистре с указанным числом."""
+        try:
+            mNum = MStr.from_string(strNum)
+        except ValueError as err:
+            print(err)
+            return False
 
-        mNum = MStr.from_string(strNum)
         intResult = self.__register.intComp(mNum, self.__converter)
         print (MStr.to_string(mNum))
 
@@ -115,18 +128,33 @@ class main:
             print('Сравнение неопределено')
 
 
-    def show_rates(self, pars = None):
-        """Выводит таблицу курсов."""
-        print(str(self.__converter.rates))
+    def show_rates(self, inName = ''):
+        """Выводит таблицу курсов с отбором по единице, переданной параметром."""
+        if not inName:
+            print("укажите единицу для отбора")
+        for el in self.__converter.rates:
+            if inName in el:
+                print(str(el), self.__converter.rates[el])
 
-    def show_measures(self, pars = None):
+    def show_units(self, pars = None):
         """Выводит списки единиц из таблицы курсов, изолированные по ""сетам""."""
-        print(self.__converter.measures)
+        print(self.__converter.units)
 
-    def show_ranged(self, pars = None):
-        """Выводит общую ранжированную таблицу единиц."""
-        for el in self.__converter.ranged:
-            print(el)
+    def reduce_measures(self, pars = None):
+        self.__register = self.__register.reduce_measures(self.__converter)
+        self.__register = self.normalize(self.__register)
+        self.show_output()
+
+    def pack_measure(self, pars = None):
+        self.__register = self.__register.reduce_measures(self.__converter).pack_measures()
+        self.__register = self.normalize(self.__register)
+        self.show_output()
+
+    def invert(self, pars = None):
+        self.__register = self.__register.reciprocal()
+        self.__register = self.normalize(self.__register)
+        self.show_output()
+
 
 # ==========]METHODS
 
@@ -135,49 +163,92 @@ class main:
     def evaluate(self, instr):
         """арифметические вычисления"""
         def isRegular(inMNum):
-            measures = inMNum.names()
-            return(len(measures) == 1 and not measures[0].strip())
+            return(
+                len(inMNum.list) == 1
+                and (inMNum.list[0].measure == MNum.Measure())
+            )
+
+        # УМНОЖЕНИЕ (только на обычное число, "увеличение в N раз")
+        def fool_mult(multiplicand, multiplier):
+            self.__register = multiplicand.with_rationals(Frac.mul, multiplier)
+
+        # "полное" умножение с преобразованием единиц
+        def full_mult(multiplier):
+            self.__register = self.__register.mul(multiplier)
 
         op = instr[0] if len(instr) > 0 else ' '
 
         sInp = instr[1:]
-        mInp = MStr.from_string(sInp.strip())
+        # знак деления с остатком
+        if (
+            op == '/'
+            and len(instr) > 1
+            and instr[1] == '/'
+        ):
+            op = '//'
+            sInp = sInp[1:]
+
+        try:
+            mInp = MStr.from_string(sInp.strip())
+        except ValueError as err:
+            print(err)
+            return False
+        
 
         if op == '=':
             self.__register = mInp
         
         elif op == '+':
-            #СЛОЖЕНИЕ
+            # СЛОЖЕНИЕ
             self.__register = self.__register.compose(mInp)
         elif op == '-':
-            #ВЫЧИТАНИЕ
+            # ВЫЧИТАНИЕ
             self.__register = self.__register.compose(mInp.with_rationals(Frac.opposite))
         elif op == '*':
-            #УМНОЖЕНИЕ (только на обычное число, "увеличение в N раз")
+            # УМНОЖЕНИЕ
             if isRegular(mInp):
-                multiplicand = self.__register
-                multiplier   = mInp
+                fool_mult(self.__register, mInp.list[0].rational)
             elif isRegular(self.__register):
-                multiplicand = mInp
-                multiplier   = self.__register
+                fool_mult(mInp, self.__register.list[0].rational)
             else:
-                print('Перемножение двух смешанных чисел не определено')
-                return False
-            self.__register = multiplicand.with_rationals(Frac.mul, multiplier.list[0].rational)
-        elif op == '/' or op == '%':
-            #ДЕЛЕНИЕ (с остатком)
+                full_mult(mInp)
+            
+        elif op == '/':
+            # ДЕЛЕНИЕ обычное 
             try:
                 if isRegular(mInp):
-                    # на обычное число, "уменьшение в N раз"
-                    quotient  = self.__register.with_rationals(Frac.mul, mInp.list[0].rational.reciprocal())
-                    remainder = MNum.MixedNum((MNum.Elem(Frac()),)) # остаток всегда ноль
+                    # на число - равносильно делению частей числа
+                    fool_mult(self.__register, mInp.list[0].rational.reciprocal())
+                else:
+                    # "полное" деление с преобразованием единиц
+                    # требует конвертера.
+                    # ограничено одной единицей (минимальной) в приведенном значении
+                    self.__register = self.__register.div(mInp, self.__converter)
+            except ZeroDivisionError as err:
+                print(str(err))
+                return False
+            except ValueError as err:
+                print(str(err))
+                return False
+            
+        elif op == '//' or op == '%':
+            # ДЕЛЕНИЕ (с остатком)
+            try:
+                if isRegular(mInp):
+                    print("для деления на обычное число воспользуйтесь операцией /")
+                    return False
                 else:
                     # на смешанное число, "исчерпывание" (в том числе и обычного числа)
                     result = self.__register.times(mInp, self.__converter)
                     quotient  = MNum.MixedNum((MNum.Elem(result[0]),))
                     remainder = result[1]
 
-                if op == '/':
+                    # конвертируем остаток в исходные единицы делимого
+                    # (иначе может быть неудобное представление просто из-за того,
+                    # что в делимом и делителе присутствуют разные единицы даже из одного и того же сета)
+                    remainder = self.__converter.convert_join(remainder, mInp.get_measures())                    
+
+                if op == '//':
                     # результат - частное
                     print ('Остаток: ', MStr.to_string(self.normalize(remainder)))
                     self.__register = quotient
@@ -227,7 +298,7 @@ sprFrac = /  # Разделяет числитель и знаменатель
         __sprComm = '#'
         __sprVal  = "="
         
-        mIni = Ini({'sprFld' : None, 'sprInt' : None, 'sprFrac' : None})
+        mIni = Ini({'sprFld' : None, 'sprInt' : None, 'sprFrac' : None, 'sprDiv' : None, 'sprMul' : None, 'sprPow' : None})
         fileName = fileName.strip()
         try:
             mIni.read_from_file(fileName, __sprComm, __sprVal)
@@ -235,7 +306,7 @@ sprFrac = /  # Разделяет числитель и знаменатель
             print('Settings file not foud: ', fileName, ', format was not changed')
             return False
         
-        if not MStr.set_separators(mIni['sprFld'], mIni['sprInt'] ,mIni['sprFrac']):
+        if not MStr.set_separators(mIni['sprFld'], mIni['sprInt'] ,mIni['sprFrac'] ,mIni['sprDiv'] ,mIni['sprMul'] ,mIni['sprPow']):
             print('Incorrect separators, format was not changed')
             return False
 
@@ -269,13 +340,17 @@ Multiplicity;   Source;             Rate;           Target;
 
         for rowIdx in range(tab.rows):
             row = tab.get_row(rowIdx)
-            if not self.__converter.add_rate(
-                    row['Source']
-                    ,row['Target']
-                    ,MStr.from_string(row['Multiplicity']).rationals()[0]
-                    ,MStr.from_string(row['Rate']).rationals()[0]
-                ):
-                print('WARNING ', row['Source'],', ', row['Target'])
+            try:
+                if not self.__converter.add_rate(
+                        row['Source']
+                        ,row['Target']
+                        ,MStr.from_string(row['Multiplicity']).rationals()[0]
+                        ,MStr.from_string(row['Rate']).rationals()[0]
+                    ):
+                    print('WARNING ', row['Source'],', ', row['Target'])
+            except ValueError as err:
+                print(err)
+                return False
         return True
 
 # ==========]INIT
@@ -297,9 +372,12 @@ Multiplicity;   Source;             Rate;           Target;
             ,'CONVERT' : self.show_convert
             ,'COMPARE' : self.show_compare
 
+            ,'PACK'    : self.pack_measure
+            ,'REDUCE'  : self.reduce_measures
+            ,'INVERT'  : self.invert
+
             ,'RATETAB':self.show_rates
-            ,'MEASURES':self.show_measures
-            ,'RANGED':self.show_ranged
+            ,'UNITS'  :self.show_units
 
             ,'DECIMAL' : self.show_decimal
         }
@@ -322,14 +400,19 @@ Multiplicity;   Source;             Rate;           Target;
             ,'КОНВ'   : 'CONVERT'
             ,'COMP'   : 'COMPARE'
             ,'СРАВ'   : 'COMPARE'
+            ,'REDUCE' : 'REDUCE'
+            ,'СОКР'   : 'REDUCE'
+            ,'INV'    : 'INVERT'
+            ,'ИНВ'    : 'INVERT'
+            ,'PACK'   : 'PACK'
+            ,'ПАК'    : 'PACK'
+
 
 
             ,'TAB':'RATETAB'
             ,'ТАБ':'RATETAB'
-            ,'MSR':'MEASURES'
-            ,'ЕД':'MEASURES'
-            ,'RANG':'RANGED'
-            ,'РАНГ':'RANGED'
+            ,'UNI':'UNITS'
+            ,'ЕД' :'UNITS'
 
             ,'DEC'    : 'DECIMAL'
             ,'ДЕС'    : 'DECIMAL'

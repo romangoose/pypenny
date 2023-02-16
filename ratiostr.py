@@ -105,8 +105,8 @@ returns tuple (fraction, tail-of-string)
                 currKey  = 'denominator'
                 switches = ''
 
-        if switches == cls.__sprFrac:
-            # sprFrac was not previously found, so it's a decimal fraction
+        if parts['denominator'] == '':
+            # it's a decimal fraction
             parts['denominator'] = '1' + '0'*len(parts['numerator'])
 
         outFrac = Frac().dict()

@@ -93,7 +93,11 @@ class main:
 """
         measures = []
         for el in strMeasures.split(self.__sprFld):
-            measures.append(MStr.measure_from_string(el.strip()))
+            try:
+                measures.append(MStr.measure_from_string(el.strip()))
+            except ValueError as err:
+                print(err)
+                return False
 
         res = self.__converter.convert(self.__register, measures)
         if len(res) != 0:
@@ -105,8 +109,12 @@ class main:
 
     def show_compare(self, strNum):
         """Сравнивает текущее число в регистре с указанным числом."""
+        try:
+            mNum = MStr.from_string(strNum)
+        except ValueError as err:
+            print(err)
+            return False
 
-        mNum = MStr.from_string(strNum)
         intResult = self.__register.intComp(mNum, self.__converter)
         print (MStr.to_string(mNum))
 
@@ -180,8 +188,12 @@ class main:
             op = '//'
             sInp = sInp[1:]
 
-
-        mInp = MStr.from_string(sInp.strip())
+        try:
+            mInp = MStr.from_string(sInp.strip())
+        except ValueError as err:
+            print(err)
+            return False
+        
 
         if op == '=':
             self.__register = mInp
@@ -328,13 +340,17 @@ Multiplicity;   Source;             Rate;           Target;
 
         for rowIdx in range(tab.rows):
             row = tab.get_row(rowIdx)
-            if not self.__converter.add_rate(
-                    row['Source']
-                    ,row['Target']
-                    ,MStr.from_string(row['Multiplicity']).rationals()[0]
-                    ,MStr.from_string(row['Rate']).rationals()[0]
-                ):
-                print('WARNING ', row['Source'],', ', row['Target'])
+            try:
+                if not self.__converter.add_rate(
+                        row['Source']
+                        ,row['Target']
+                        ,MStr.from_string(row['Multiplicity']).rationals()[0]
+                        ,MStr.from_string(row['Rate']).rationals()[0]
+                    ):
+                    print('WARNING ', row['Source'],', ', row['Target'])
+            except ValueError as err:
+                print(err)
+                return False
         return True
 
 # ==========]INIT

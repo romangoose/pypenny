@@ -91,7 +91,16 @@ class MixedString(FStr):
                     nameAndExpo.append('1')
                 if not nameAndExpo[1]:
                     nameAndExpo[1] = '1'
-                outList.append(MsrPart(nameAndExpo[0].strip(), int(nameAndExpo[1])*sign))
+                nameAndExpo[0] = nameAndExpo[0].strip() 
+                if nameAndExpo[0].isdigit():
+                    # это не является и не приводит к ошибкам
+                    # но в записях юниты, состоящие только из цифр,
+                    # визуально смешиваются с показателями степеней
+                    raise ValueError('unit name must not contain only numeric characters: ', mul, inStr)
+                try:
+                    outList.append(MsrPart(nameAndExpo[0].strip(), int(nameAndExpo[1])*sign))
+                except ValueError as err:
+                    raise ValueError('incorrect value of exponent: ', mul, inStr)
             if sign == 1:
                 # next part of measure is negative
                 sign = -1

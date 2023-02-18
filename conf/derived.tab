@@ -1,0 +1,35 @@
+Multiplicity;	Source;		Rate;	Target
+#1;				m:2;		1;		m:3
+
+1/100;			ha;			1;		ar
+10000;			m:2;		1;		ha
+1;				га;			1;		ha
+1;				гектар;		1;		ha
+1;				ар;			1;		ar
+1;				сотка;		1;		ar
+
+1;				acre;		4840;	yard:2
+1;				acre;		1;		акр
+
+1;				десятина;	2400;	сажень:2
+
+1;				litre;		0.001;	m:3
+1;				ml;			0.001;	l
+1;				litre;		1;		l
+1;				litre;		1;		литр
+1;				litre;		1;		л
+1;				ml;			1;		мл
+1;				ml;			1;		миллилитр
+
+# американский - винный галлон
+1;				gallon;		231;	inch:3
+1;				gallon;		4;		quart
+1;				gallon;		8;		pint
+1;				pint;		16;		fl oz
+
+1;				barrel;		42;		gallon
+
+1;				kn; 		1;		n.mile/hr
+1;				kt; 		1;		kn
+1;				узел;		1;		kn
+

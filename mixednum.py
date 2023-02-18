@@ -677,12 +677,36 @@ class Converter:
             return True
 
         return False
+    
+    def uncover_alias(self, alias):
+        elem = self.__aliases.get(alias)
+        if elem:
+            outList = []
+            mult = elem.rational
+            for msr in elem.measure.list:
+                elem = self.uncover_alias(msr.name)
+                if elem:
+                    iSgn = 1 if msr.exponent > 0 else -1
+                    if iSgn > 0:
+                        mult = mult.mul(elem.rational)
+                    else:
+                        mult = mult.div(elem.rational)
+                    for fndPart in elem.measure.list:
+                        outList.append(MsrPart(fndPart.name, fndPart.exponent * iSgn))
+                else:
+                    outList.append(msr)
+            return(Elem(mult, Measure(outList)))
+
+        return elem
 
     def uncover_measure(self, inMeasure):
         outList = []
         mult = Frac(1)
         for inPart in inMeasure.list:
-            elem = self.__aliases.get(inPart.name)
+
+            elem = self.uncover_alias(inPart.name)
+
+            #elem = self.__aliases.get(inPart.name)
             if elem:
                 iSgn = 1 if inPart.exponent > 0 else -1
                 if iSgn > 0:

@@ -105,7 +105,10 @@ returns tuple (fraction, tail-of-string)
                 currKey  = 'denominator'
                 switches = ''
 
-        if parts['denominator'] == '':
+        if (
+            parts['numerator']
+            and not parts['denominator']
+        ):
             # it's a decimal fraction
             parts['denominator'] = '1' + '0'*len(parts['numerator'])
 

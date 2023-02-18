@@ -84,6 +84,13 @@ class main:
         self.__archReg   = MNum.MixedNum() #put Zero in 'archive' register
         self.__converter = MNum.Converter()
 
+    def uncover(self, mNum):
+        outList = []
+        for el in mNum.list:
+            unc = self.__converter.uncover_measure(el.measure)
+            outList.append(MNum.Elem(el.rational.mul(unc.rational),unc.measure))
+        return(MNum.MixedNum(outList))
+
     def show_convert(self, strMeasures):
         """Конвертирует число из текущего регистра в указанные единицы и помещает результат в регистр.
 Настройка конвертации задается параметром в виде списка единиц, разделенных аналогично частям смешанного числа (см. ФОРМ).
@@ -91,6 +98,11 @@ class main:
 Для конвертации необходима установка курсов (см. КУРС).
 
 """
+        if not strMeasures.strip():
+            self.__register = self.normalize(self.uncover(self.__register))
+            self.show_output(' => ', MNum.MixedNum())
+            return True
+
         measures = []
         for el in strMeasures.split(self.__sprFld):
             try:
@@ -98,7 +110,7 @@ class main:
             except ValueError as err:
                 print(err)
                 return False
-
+            
         res = self.__converter.convert(self.__register, measures)
         if len(res) != 0:
             print('не конвертировано: ', MStr.to_string(res[1]))
@@ -134,11 +146,16 @@ class main:
             print("укажите единицу для отбора")
         for el in self.__converter.rates:
             if inName in el:
-                print(str(el), self.__converter.rates[el])
+                print(str(el), str(self.__converter.rates[el]))
 
     def show_units(self, pars = None):
         """Выводит списки единиц из таблицы курсов, изолированные по ""сетам""."""
         print(self.__converter.units)
+
+    def show_aliases(self, pars = None):
+        """Выводит список псевдонимов составных единиц"""
+        for el in self.__converter.aliases:
+            print(el, MStr.to_string(MNum.MixedNum((self.__converter.aliases[el],))))
 
     def reduce_measures(self, pars = None):
         self.__register = self.__register.reduce_measures(self.__converter)
@@ -340,6 +357,26 @@ Multiplicity;   Source;             Rate;           Target;
 
         for rowIdx in range(tab.rows):
             row = tab.get_row(rowIdx)
+
+            src = row['Source']
+            src_ = MStr.measure_from_string(src)
+            tgt = row['Target']
+            tgt_ = MStr.measure_from_string(tgt)
+
+            if not src_.isTrivial() and not tgt_.isTrivial():
+                print('incorrect: ', src_, tgt_)
+                continue
+
+            mult = MStr.from_string(row['Multiplicity']).rationals()[0]
+            rate = MStr.from_string(row['Rate']).rationals()[0]
+
+            if not src_.isTrivial():
+                self.__converter.add_alias(tgt, MNum.Elem(mult.div(rate),src_))
+                continue
+            elif not tgt_.isTrivial():
+                self.__converter.add_alias(src, MNum.Elem(rate.div(mult),tgt_))
+                continue
+
             try:
                 if not self.__converter.add_rate(
                         row['Source']
@@ -378,6 +415,7 @@ Multiplicity;   Source;             Rate;           Target;
 
             ,'RATETAB':self.show_rates
             ,'UNITS'  :self.show_units
+            ,'ALIAS'  :self.show_aliases
 
             ,'DECIMAL' : self.show_decimal
         }
@@ -409,10 +447,12 @@ Multiplicity;   Source;             Rate;           Target;
 
 
 
-            ,'TAB':'RATETAB'
-            ,'ТАБ':'RATETAB'
-            ,'UNI':'UNITS'
-            ,'ЕД' :'UNITS'
+            ,'TAB'  : 'RATETAB'
+            ,'ТАБ'  : 'RATETAB'
+            ,'UNI'  : 'UNITS'
+            ,'ЕД'   : 'UNITS'
+            ,'АЛЬТ' : 'ALIAS'
+            ,'ALT'  : 'ALIAS'
 
             ,'DEC'    : 'DECIMAL'
             ,'ДЕС'    : 'DECIMAL'

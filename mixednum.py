@@ -60,9 +60,6 @@ class Measure:
                 raise ValueError("incorrect measure's part")
             if el.name == '':
                 continue
-            '''
-            idx = self.get_part_index_by_name(el.name)
-            '''
 
             self.__list.append(MsrPart(el.name, el.exponent))
 
@@ -70,7 +67,7 @@ class Measure:
         return(','.join([str(i) for i in self.__list]))
 
     def __eq__(self, other):
-        def sign(expo):
+        def sgn(expo):
             return(expo > 0)
         
         if not isinstance(other, Measure):
@@ -80,15 +77,15 @@ class Measure:
         for part in self.__list:
             expo = sParts.get((part.name, part.exponent))
 
-            if expo and (sign(expo) == sign(part.exponent)):
-                sParts[(part.name, sign(expo))] = expo + part.exponent
+            if expo and (sgn(expo) == sgn(part.exponent)):
+                sParts[(part.name, sgn(expo))] = expo + part.exponent
             else:
-                sParts[(part.name, sign(part.exponent))] = part.exponent
+                sParts[(part.name, sgn(part.exponent))] = part.exponent
         
         for part in other.__list:
-            if not (part.name,sign(part.exponent)) in sParts:
+            if not (part.name,sgn(part.exponent)) in sParts:
                 return False
-            sParts[(part.name, sign(part.exponent))] = sParts[(part.name, sign(part.exponent))] - part.exponent
+            sParts[(part.name, sgn(part.exponent))] = sParts[(part.name, sgn(part.exponent))] - part.exponent
 
         for part in sParts:
             if sParts[part] != 0:
@@ -138,6 +135,12 @@ class Measure:
                     del outList[idx]
         return(Measure(outList))
 
+    def isTrivial(self):
+        """if the measure is trivial: it has only one part and the first exponent"""
+        return(
+            len(self.__list) == 1
+            and self.__list[0].exponent == 1
+        )
 
 class Elem:
     """the elementary part of a mixed number: a fraction having a measure"""
@@ -459,6 +462,7 @@ class Converter:
         # но тратится время на само заполнение units
         # кроме того, это единственный объект, который различает отдельные "линейки", полезен для пользователя
         # надо ли? теоретически изолированные сеты можно получить рассчетным методом по таблице курсов)
+        self.__aliases = {} # словарь имен производных единиц (1 литр = 0.001 м^3) {имя: элемент}
 
     @property
     def rates(self):
@@ -467,6 +471,10 @@ class Converter:
     @property
     def units(self):
         return(self.__units)
+
+    @property
+    def aliases(self):
+        return(self.__aliases)
 
     def add_rate(self, source, target, multiplicity, rate):
         """add main and dependent (cross and reverse) rates"""
@@ -533,6 +541,11 @@ class Converter:
                                                 ,'rate':        rate
                                             }
 
+            #alias
+            al = self.__aliases.get(target)
+            if al:
+                self.add_alias_record(source, Elem(al.rational.mul(Frac.shorter(rate,multiplicity)).reduce(),al.measure))
+
             # reverse record
             if not (target, source) in self.__rates:
                 add_record(target, source, unitSet, rate, multiplicity)
@@ -581,35 +594,45 @@ class Converter:
             )
         return None
 
-
     def get_measure_rate(self, source, target):
         """multiplier that converts the source measure to the target OR None"""
 
+        uncoveredTarget = self.uncover_measure(target)
+        outMult = uncoveredTarget.rational
         # все части входящей единицы, разбитые "по одной" степени
-        trgParts = []
-        for part in target.list:
+        tgtParts = []
+        for part in uncoveredTarget.measure.list:
             expo = 1
             if part.exponent < 0:
                 expo = -1
             for i in range(abs(part.exponent)):
-                trgParts.append(MsrPart(part.name, expo))
+                tgtParts.append(MsrPart(part.name, expo))
+
+        uncoveredSource = self.uncover_measure(source)
 
         # для каждой части элемента
-        outMult = Frac(1)
-        for srcPart in source.list:
+        #outMult = Frac(1)
+        outMult = outMult.div(uncoveredSource.rational)
+        #for srcPart in source.list:
+        for srcPart in uncoveredSource.measure.list:
+
             expo = 1
             if srcPart.exponent < 0:
                 expo = -1
             # каждую единицу степени перебираем отдельно
+
             for i in range(abs(srcPart.exponent)):
                 found = False
-                for idx in range(len(trgParts)):
-                    if trgParts[idx].exponent == expo:
-                        if srcPart.name == trgParts[idx].name:
+                for idx in range(len(tgtParts)):
+                    if tgtParts[idx].exponent == expo:
+
+                        
+
+                        if srcPart.name == tgtParts[idx].name:
                             found = True
                             break
 
-                        opMult = self.get_unit_rate(srcPart.name, trgParts[idx].name)
+                        opMult = self.get_unit_rate(srcPart.name, tgtParts[idx].name)
                         if opMult:
                             if expo < 0:
                                 opMult = opMult.reciprocal()
@@ -618,15 +641,83 @@ class Converter:
                             break
                 if found:
                     # удаляем "использованную" часть входной единицы
-                    del trgParts[idx]
+                    del tgtParts[idx]
                 else:
                     # однозначно сигнализирует о несовместимости единиц
                     return None
-        if len(trgParts) == 0:
+        if len(tgtParts) == 0:
             # если в конечном счете использованы все части - ОК
             return outMult
         
         return None
+
+    def get_unitSet(self, unit):
+        """return set where the inMeasure is"""
+        for el in self.__units:
+            if unit in el:
+                return el
+        return None
+
+    def add_alias_record(self, alias, elem):
+        if alias in self.__aliases:
+            return False
+        self.__aliases[alias] = elem
+        return True
+
+    def add_alias(self, alias, elem):
+        if self.add_alias_record(alias, elem):
+            unitSet = self.get_unitSet(alias)
+            if unitSet:
+                for uni in unitSet:
+                    if uni == alias:
+                        continue
+                    rate = self.get_unit_rate(uni, alias)
+                    if rate:
+                        self.add_alias_record(uni, Elem(elem.rational.div(rate).reduce(),elem.measure))
+            return True
+
+        return False
+    
+    def uncover_alias(self, alias):
+        elem = self.__aliases.get(alias)
+        if elem:
+            outList = []
+            mult = elem.rational
+            for msr in elem.measure.list:
+                elem = self.uncover_alias(msr.name)
+                if elem:
+                    iSgn = 1 if msr.exponent > 0 else -1
+                    if iSgn > 0:
+                        mult = mult.mul(elem.rational)
+                    else:
+                        mult = mult.div(elem.rational)
+                    for fndPart in elem.measure.list:
+                        outList.append(MsrPart(fndPart.name, fndPart.exponent * iSgn))
+                else:
+                    outList.append(msr)
+            return(Elem(mult, Measure(outList)))
+
+        return elem
+
+    def uncover_measure(self, inMeasure):
+        outList = []
+        mult = Frac(1)
+        for inPart in inMeasure.list:
+
+            elem = self.uncover_alias(inPart.name)
+
+            #elem = self.__aliases.get(inPart.name)
+            if elem:
+                iSgn = 1 if inPart.exponent > 0 else -1
+                if iSgn > 0:
+                    mult = mult.mul(elem.rational)
+                else:
+                    mult = mult.div(elem.rational)
+                for fndPart in elem.measure.list:
+                    outList.append(MsrPart(fndPart.name, fndPart.exponent * iSgn))
+            else:
+                outList.append(inPart)
+        return(Elem(mult, Measure(outList)))
 
     def unify_measure(self, inMeasure):
         """replace all parts of measure to the lowest"""

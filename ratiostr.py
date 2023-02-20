@@ -105,12 +105,13 @@ returns tuple (fraction, tail-of-string)
                 currKey  = 'denominator'
                 switches = ''
 
-        if (
-            parts['numerator']
-            and not parts['denominator']
-        ):
-            # it's a decimal fraction
-            parts['denominator'] = '1' + '0'*len(parts['numerator'])
+        if not parts['denominator']:
+            if parts['intPart']:
+                # it's a decimal fraction
+                parts['denominator'] = '1' + '0'*len(parts['numerator'])
+            else:
+                parts['intPart'] = parts['numerator']
+                parts['numerator'] = ''
 
         outFrac = Frac().dict()
         outFrac['isNegative'] = isNegative

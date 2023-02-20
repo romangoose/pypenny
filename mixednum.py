@@ -111,7 +111,7 @@ class Measure:
             outList.extend(el.list)
         return(Measure(outList))
 
-    def pack(self):
+    def fold(self):
         """
         summation of the same-name exponents, removing zeroes
         """
@@ -136,7 +136,7 @@ class Measure:
         return(Measure(outList))
 
     def isTrivial(self):
-        """if the measure is trivial: it has only one part and the first exponent"""
+        """if the measure is trivial: it has only one part and the exponent 1"""
         return(
             len(self.__list) == 1
             and self.__list[0].exponent == 1
@@ -278,13 +278,13 @@ class MixedNum:
                 outList.append(Elem(el.rational, el.measure))
         return(MixedNum(outList))
 
-    def pack_measures(self):
+    def fold_measures(self):
         outList = []
         for el in self.__list:
             outList.append(
                 Elem(
                     el.rational
-                    ,el.measure.pack()
+                    ,el.measure.fold()
                 )
             )
         return(MixedNum(outList))
@@ -301,7 +301,7 @@ class MixedNum:
                 outList.append(Elem(func(el.rational,pars), el.measure))
         return(MixedNum(outList))
 
-    def reduce_measures(self, converter):
+    def unify_measures(self, converter):
 
         outMeasures = []
         for el in self.list:
@@ -611,11 +611,8 @@ class Converter:
         uncoveredSource = self.uncover_measure(source)
 
         # для каждой части элемента
-        #outMult = Frac(1)
         outMult = outMult.div(uncoveredSource.rational)
-        #for srcPart in source.list:
         for srcPart in uncoveredSource.measure.list:
-
             expo = 1
             if srcPart.exponent < 0:
                 expo = -1

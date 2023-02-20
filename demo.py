@@ -157,13 +157,15 @@ class main:
         for el in self.__converter.aliases:
             print(el, MStr.to_string(MNum.MixedNum((self.__converter.aliases[el],))))
 
-    def reduce_measures(self, pars = None):
-        self.__register = self.__register.reduce_measures(self.__converter)
+    def unify_measures(self, pars = None):
+        """Унифицирует: Приводит все части составной единицы к одинаковому (наименьшему) значению"""
+        self.__register = self.__register.unify_measures(self.__converter)
         self.__register = self.normalize(self.__register)
         self.show_output()
 
-    def pack_measure(self, pars = None):
-        self.__register = self.__register.reduce_measures(self.__converter).pack_measures()
+    def fold_measures(self, pars = None):
+        """Объединяет степени одноименных единиц (предварительно выполняет унификацию (fold))"""
+        self.__register = self.__register.unify_measures(self.__converter).fold_measures()
         self.__register = self.normalize(self.__register)
         self.show_output()
 
@@ -409,8 +411,8 @@ Multiplicity;   Source;             Rate;           Target;
             ,'CONVERT' : self.show_convert
             ,'COMPARE' : self.show_compare
 
-            ,'PACK'    : self.pack_measure
-            ,'REDUCE'  : self.reduce_measures
+            ,'FOLD'    : self.fold_measures
+            ,'UNIFY'   : self.unify_measures
             ,'INVERT'  : self.invert
 
             ,'RATETAB':self.show_rates
@@ -438,12 +440,12 @@ Multiplicity;   Source;             Rate;           Target;
             ,'КОНВ'   : 'CONVERT'
             ,'COMP'   : 'COMPARE'
             ,'СРАВ'   : 'COMPARE'
-            ,'REDUCE' : 'REDUCE'
-            ,'СОКР'   : 'REDUCE'
+            ,'UNI'    : 'UNIFY'
+            ,'УНИ'    : 'UNIFY'
             ,'INV'    : 'INVERT'
             ,'ИНВ'    : 'INVERT'
-            ,'PACK'   : 'PACK'
-            ,'ПАК'    : 'PACK'
+            ,'FOLD'   : 'FOLD'
+            ,'ФОЛД'   : 'FOLD'
 
 
 

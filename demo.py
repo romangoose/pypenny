@@ -440,7 +440,7 @@ Multiplicity;   Source;             Rate;           Target;
             ,'КОНВ'   : 'CONVERT'
             ,'COMP'   : 'COMPARE'
             ,'СРАВ'   : 'COMPARE'
-            ,'UNI'    : 'UNIFY'
+            ,'UFY'    : 'UNIFY'
             ,'УНИ'    : 'UNIFY'
             ,'INV'    : 'INVERT'
             ,'ИНВ'    : 'INVERT'
@@ -451,7 +451,7 @@ Multiplicity;   Source;             Rate;           Target;
 
             ,'TAB'  : 'RATETAB'
             ,'ТАБ'  : 'RATETAB'
-            ,'UNI'  : 'UNITS'
+            ,'UNIT' : 'UNITS'
             ,'ЕД'   : 'UNITS'
             ,'АЛЬТ' : 'ALIAS'
             ,'ALT'  : 'ALIAS'

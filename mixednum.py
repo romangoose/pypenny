@@ -305,7 +305,7 @@ class MixedNum:
 
         outMeasures = []
         for el in self.list:
-            outMeasures.append(converter.unify_measure(el.measure))
+            outMeasures.append(converter.unify_measure(el.measure).measure)
         return(converter.convert_join(self, outMeasures))
 
     def times(self, other, converter):
@@ -612,6 +612,7 @@ class Converter:
 
         # для каждой части элемента
         outMult = outMult.div(uncoveredSource.rational)
+
         for srcPart in uncoveredSource.measure.list:
             expo = 1
             if srcPart.exponent < 0:
@@ -719,20 +720,31 @@ class Converter:
     def unify_measure(self, inMeasure):
         """replace all parts of measure to the lowest"""
         outList = []
+        mult = Frac(1)
         for inPart in inMeasure.list:
             chosenMsr = inPart
             for idx in range(len(outList)):
                 if outList[idx].name == chosenMsr.name:
                     continue
                 opMult = self.get_unit_rate(outList[idx].name, chosenMsr.name)
+                #opMult = self.get_unit_rate(chosenMsr.name, outList[idx].name)
                 if opMult:
                     if Frac(1).intComp(opMult) > 0:
+                    #if opMult.intComp(Frac(1)) > 0:
                         outList[idx] = MsrPart(chosenMsr.name, outList[idx].exponent)
                     else:
                         chosenMsr = MsrPart(outList[idx].name, chosenMsr.exponent)
+                    for i in range(abs(chosenMsr.exponent)):
+                        if chosenMsr.exponent > 0:
+                            mult = mult.div(opMult)
+                        else:
+                            mult = mult.mul(opMult)
+
+
             outList.append(chosenMsr)
 
-        return(Measure(outList))
+        #return(Measure(outList))
+        return(Elem(mult, Measure(outList)))
 
     def convert_to_lowest_join(self, inMNum, inMeasures):
         lowest = self.convert_to_lowest(inMNum, inMeasures)
@@ -754,8 +766,46 @@ class Converter:
         for el in inMNum.list:
             divisor = None
             chosenMsr = None
+
+            elUnc_ = self.uncover_measure(el.measure)
+            elUni_ = self.unify_measure(elUnc_.measure)
+
+            opMult_ = self.get_measure_rate(el.measure, elUni_.measure)
+            opMult__ = elUni_.rational
+
+            if opMult__.intComp(opMult_) != 0:
+                print('no zero')
+
+
             for inMsr in inMeasures:
-                opDiv = self.get_measure_rate(el.measure, inMsr) # дробь или не существует
+
+                
+
+                # мб здесь вставить Юнифай для каждой единицы
+                # (чтобы в гет-рейт вставить пак() - и получать множитель между еиницами с сокращенными и развернутыми степенями
+                # (чтобы на уровне ПОИСКА МНОЖИТЕЛЯ не различались М:3/М:2 и М))
+
+                # ел.единица - курс к ел.единица_юнифай - к инМср.юнифай
+
+
+                # или сразу - юнифай_межурес для всего числа
+                inUnc_ = self.uncover_measure(inMsr)
+                inUni_ = self.unify_measure(inUnc_.measure)
+                opDiv_  = self.get_measure_rate(inMsr, inUni_.measure)
+                opDiv__ = inUni_.rational
+
+                if opDiv__.intComp(opDiv_) != 0:
+                    print('no zero')
+
+                NoNone = self.get_measure_rate(elUni_.measure.fold(), inUni_.measure.fold())
+
+                if NoNone:
+                    opDiv_ = opMult_.div(opDiv_).mul(NoNone)
+                else:
+                    opDiv_ = NoNone
+                
+                opDiv = opDiv_
+                #opDiv = self.get_measure_rate(el.measure, inMsr) # дробь или не существует
                 if (
                     opDiv # если существует
                     and (

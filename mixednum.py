@@ -303,10 +303,20 @@ class MixedNum:
 
     def unify_measures(self, converter):
 
-        outMeasures = []
+        #outMeasures = []
+        mult = Frac(1)
+        outEl = []
         for el in self.list:
-            outMeasures.append(converter.unify_measure(el.measure).measure)
-        return(converter.convert_join(self, outMeasures))
+            res = converter.unify_measure(el.measure)
+            mult = mult.mul(res.rational)
+
+            outEl.append(Elem(el.rational.mul(mult), res.measure))
+
+            #outMeasures.append(res.measure)
+        outNum = MixedNum(outEl)
+        #out = converter.convert_join(self, outMeasures)
+        return(outNum)
+        #return(out)
 
     def times(self, other, converter):
 
@@ -732,13 +742,20 @@ class Converter:
                     if Frac(1).intComp(opMult) > 0:
                     #if opMult.intComp(Frac(1)) > 0:
                         outList[idx] = MsrPart(chosenMsr.name, outList[idx].exponent)
+                        opMult = opMult.reciprocal()
+                        expo = outList[idx].exponent
                     else:
                         chosenMsr = MsrPart(outList[idx].name, chosenMsr.exponent)
-                    for i in range(abs(chosenMsr.exponent)):
-                        if chosenMsr.exponent > 0:
-                            mult = mult.div(opMult)
-                        else:
+                        expo = chosenMsr.exponent
+                        
+                        
+
+
+                    for i in range(abs(expo)):
+                        if expo > 0:
                             mult = mult.mul(opMult)
+                        else:
+                            mult = mult.div(opMult)
 
 
             outList.append(chosenMsr)

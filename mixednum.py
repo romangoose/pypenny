@@ -75,9 +75,9 @@ class Measure:
 
         sParts = {}
         for part in self.__list:
-            expo = sParts.get((part.name, part.exponent))
+            expo = sParts.get((part.name, sgn(part.exponent)))
 
-            if expo and (sgn(expo) == sgn(part.exponent)):
+            if expo:
                 sParts[(part.name, sgn(expo))] = expo + part.exponent
             else:
                 sParts[(part.name, sgn(part.exponent))] = part.exponent
@@ -300,23 +300,6 @@ class MixedNum:
             else:
                 outList.append(Elem(func(el.rational,pars), el.measure))
         return(MixedNum(outList))
-
-    def unify_measures(self, converter):
-
-        #outMeasures = []
-        mult = Frac(1)
-        outEl = []
-        for el in self.list:
-            res = converter.unify_measure(el.measure)
-            mult = mult.mul(res.rational)
-
-            outEl.append(Elem(el.rational.mul(mult), res.measure))
-
-            #outMeasures.append(res.measure)
-        outNum = MixedNum(outEl)
-        #out = converter.convert_join(self, outMeasures)
-        return(outNum)
-        #return(out)
 
     def times(self, other, converter):
 
@@ -729,38 +712,47 @@ class Converter:
 
     def unify_measure(self, inMeasure):
         """replace all parts of measure to the lowest"""
-        outList = []
-        mult = Frac(1)
+        outList = []   # результирующий список юниотов
+        mult = Frac(1) # результирующий множитель
         for inPart in inMeasure.list:
-            chosenMsr = inPart
+            # очередной юнит сверяем с юнитами результирующего списка
+            # (в начале он пуст)
+            chosenMsr = MsrPart(inPart.name, inPart.exponent)
             for idx in range(len(outList)):
                 if outList[idx].name == chosenMsr.name:
                     continue
+                # текущий множитель, преобразующий юнит списка к очередному
                 opMult = self.get_unit_rate(outList[idx].name, chosenMsr.name)
-                #opMult = self.get_unit_rate(chosenMsr.name, outList[idx].name)
                 if opMult:
                     if Frac(1).intComp(opMult) > 0:
-                    #if opMult.intComp(Frac(1)) > 0:
+                        # текущий множитель меньше единицы:
+                        # в результирующем списке юнит с бОльшей единицей
+                        # подменяем в нем имя единицы на имя очередного юнита
                         outList[idx] = MsrPart(chosenMsr.name, outList[idx].exponent)
+                        # переворачиваем множитель -
+                        # он должен быть больше единицы, 
                         opMult = opMult.reciprocal()
+                        # запоминаем экспоненту большего юнита
+                        # (того, который является причиной изменения множителя на данной итерации)
                         expo = outList[idx].exponent
                     else:
+                        # текущий множитель меньше единицы
+                        # меньший юнит уже лежит в результирующем списке
+                        # подменяем его именем имя в очередном юните
                         chosenMsr = MsrPart(outList[idx].name, chosenMsr.exponent)
+                        # причиной изменений стал очередной юнит - запоминаем его экспоненту
                         expo = chosenMsr.exponent
-                        
-                        
 
-
+                    # увеличиваем множитель, если менялся элемент с положительной экспонентой
+                    # иначе уменьшаем
                     for i in range(abs(expo)):
                         if expo > 0:
                             mult = mult.mul(opMult)
                         else:
                             mult = mult.div(opMult)
 
-
             outList.append(chosenMsr)
 
-        #return(Measure(outList))
         return(Elem(mult, Measure(outList)))
 
     def convert_to_lowest_join(self, inMNum, inMeasures):
@@ -836,7 +828,7 @@ class Converter:
                 ):
                     # перезаписываем делитель и запоминаем текущую единицу
                     divisor = Frac(**opDiv.dict())
-                    chosenMsr = inMsr
+                    chosenMsr = inMsr.combine()
             if divisor:
                 lowest.append(Elem(el.rational.div(divisor),chosenMsr))
             else:

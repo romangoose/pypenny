@@ -84,10 +84,10 @@ class main:
         self.__archReg   = MNum.MixedNum() #put Zero in 'archive' register
         self.__converter = MNum.Converter()
 
-    def uncover(self, mNum):
+    def disclose(self, mNum):
         outList = []
         for el in mNum.list:
-            unc = self.__converter.uncover_measure(el.measure)
+            unc = self.__converter.disclose_measure(el.measure)
             outList.append(MNum.Elem(el.rational.mul(unc.rational),unc.measure))
         return(MNum.MixedNum(outList))
 
@@ -99,7 +99,7 @@ class main:
 
 """
         if not strMeasures.strip():
-            self.__register = self.normalize(self.uncover(self.__register))
+            self.__register = self.normalize(self.disclose(self.__register))
             self.show_output(' => ', MNum.MixedNum())
             return True
 
@@ -158,22 +158,21 @@ class main:
             print(el, MStr.to_string(MNum.MixedNum((self.__converter.aliases[el],))))
 
     def unify_register(self):
-
+        '''        
         outMeasures = []
         for el in self.__register.list:
             res = self.__converter.unify_measure(el.measure)
             outMeasures.append(res.measure)
 
         return(self.__converter.convert_join(self.__register, outMeasures))
+        '''        
 
-        '''
         outList = []
         for el in self.__register.list:
             uni = self.__converter.unify_measure(el.measure)
-            outList.append(Elem(el.rational.mul(uni.rational), uni.measure))
+            outList.append(MNum.Elem(el.rational.mul(uni.rational), uni.measure))
 
-        return(MixedNum(outList))
-        '''
+        return(MNum.MixedNum(outList))
 
     def unify_measures(self, pars = None):
         """Унифицирует: Приводит все части составной единицы к одинаковому (наименьшему) значению"""

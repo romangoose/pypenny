@@ -589,35 +589,60 @@ class Converter:
 
     def get_measure_rate(self, source, target):
         """multiplier that converts the source measure to the target OR None"""
+        def uncover(msr):
+            # по максимуму унифицируем единицы перед расчетом курса
+            disclosed = self.disclose_measure(msr) 
+            mult = Frac(**disclosed.rational.dict()) # результирующий множитель
+            # объединяем
+            unified = self.unify_measure(disclosed.measure)
+            mult = mult.mul(unified.rational)
+            # сворачиваем
+            folded = unified.measure.fold()
+            return(mult, folded)
 
-        uncoveredTarget = self.uncover_measure(target)
-        outMult = uncoveredTarget.rational
+        # входная:
+        # раскрываем псевдонимы
+        # disclosed = self.disclose_measure(target) 
+        # mult = Frac(**disclosed.rational.dict()) # результирующий множитель
+        # объединяем
+        # unified = self.unify_measure(disclosed.measure)
+        # mult = mult.mul(unified.rational)
+        # сворачиваем
+        # folded = unified.measure.fold()
+
+        tgtMult, folded = uncover(target)
+
+
         # все части входящей единицы, разбитые "по одной" степени
         tgtParts = []
-        for part in uncoveredTarget.measure.list:
+        for part in folded.list:
             expo = 1
             if part.exponent < 0:
                 expo = -1
             for i in range(abs(part.exponent)):
                 tgtParts.append(MsrPart(part.name, expo))
 
-        uncoveredSource = self.uncover_measure(source)
 
-        # для каждой части элемента
-        outMult = outMult.div(uncoveredSource.rational)
+        # исходная
+        # disclosed = self.disclose_measure(source)
+        # mult = mult.div(disclosed.rational)
+        # unified = self.unify_measure(disclosed.measure)
+        # mult = mult.div(unified.rational)
+        # folded = unified.measure.fold()
 
-        for srcPart in uncoveredSource.measure.list:
+        srcMult, folded = uncover(source)
+        mult = tgtMult.div(srcMult)
+
+        # для каждой части исходной единицы
+        for srcPart in folded.list:
             expo = 1
             if srcPart.exponent < 0:
                 expo = -1
             # каждую единицу степени перебираем отдельно
-
             for i in range(abs(srcPart.exponent)):
                 found = False
                 for idx in range(len(tgtParts)):
                     if tgtParts[idx].exponent == expo:
-
-                        
 
                         if srcPart.name == tgtParts[idx].name:
                             found = True
@@ -627,7 +652,7 @@ class Converter:
                         if opMult:
                             if expo < 0:
                                 opMult = opMult.reciprocal()
-                            outMult = outMult.mul(opMult)
+                            mult = mult.mul(opMult)
                             found = True
                             break
                 if found:
@@ -638,7 +663,7 @@ class Converter:
                     return None
         if len(tgtParts) == 0:
             # если в конечном счете использованы все части - ОК
-            return outMult
+            return mult
         
         return None
 
@@ -669,13 +694,13 @@ class Converter:
 
         return False
     
-    def uncover_alias(self, alias):
+    def disclose_alias(self, alias):
         elem = self.__aliases.get(alias)
         if elem:
             outList = []
-            mult = elem.rational
+            mult = Frac(**elem.rational.dict())
             for msr in elem.measure.list:
-                elem = self.uncover_alias(msr.name)
+                elem = self.disclose_alias(msr.name)
                 if elem:
                     iSgn = 1 if msr.exponent > 0 else -1
                     if iSgn > 0:
@@ -690,14 +715,12 @@ class Converter:
 
         return elem
 
-    def uncover_measure(self, inMeasure):
+    def disclose_measure(self, inMeasure):
         outList = []
         mult = Frac(1)
         for inPart in inMeasure.list:
 
-            elem = self.uncover_alias(inPart.name)
-
-            #elem = self.__aliases.get(inPart.name)
+            elem = self.disclose_alias(inPart.name)
             if elem:
                 iSgn = 1 if inPart.exponent > 0 else -1
                 if iSgn > 0:
@@ -776,45 +799,9 @@ class Converter:
             divisor = None
             chosenMsr = None
 
-            elUnc_ = self.uncover_measure(el.measure)
-            elUni_ = self.unify_measure(elUnc_.measure)
-
-            opMult_ = self.get_measure_rate(el.measure, elUni_.measure)
-            opMult__ = elUni_.rational
-
-            if opMult__.intComp(opMult_) != 0:
-                print('no zero')
-
-
             for inMsr in inMeasures:
 
-                
-
-                # мб здесь вставить Юнифай для каждой единицы
-                # (чтобы в гет-рейт вставить пак() - и получать множитель между еиницами с сокращенными и развернутыми степенями
-                # (чтобы на уровне ПОИСКА МНОЖИТЕЛЯ не различались М:3/М:2 и М))
-
-                # ел.единица - курс к ел.единица_юнифай - к инМср.юнифай
-
-
-                # или сразу - юнифай_межурес для всего числа
-                inUnc_ = self.uncover_measure(inMsr)
-                inUni_ = self.unify_measure(inUnc_.measure)
-                opDiv_  = self.get_measure_rate(inMsr, inUni_.measure)
-                opDiv__ = inUni_.rational
-
-                if opDiv__.intComp(opDiv_) != 0:
-                    print('no zero')
-
-                NoNone = self.get_measure_rate(elUni_.measure.fold(), inUni_.measure.fold())
-
-                if NoNone:
-                    opDiv_ = opMult_.div(opDiv_).mul(NoNone)
-                else:
-                    opDiv_ = NoNone
-                
-                opDiv = opDiv_
-                #opDiv = self.get_measure_rate(el.measure, inMsr) # дробь или не существует
+                opDiv = self.get_measure_rate(el.measure, inMsr) # дробь или не существует
                 if (
                     opDiv # если существует
                     and (

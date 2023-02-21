@@ -158,21 +158,23 @@ class main:
             print(el, MStr.to_string(MNum.MixedNum((self.__converter.aliases[el],))))
 
     def unify_register(self):
-        '''        
+        
         outMeasures = []
         for el in self.__register.list:
             res = self.__converter.unify_measure(el.measure)
             outMeasures.append(res.measure)
 
-        return(self.__converter.convert_join(self.__register, outMeasures))
-        '''        
-
+        # return(self.__converter.convert_join(self.__register, outMeasures))
+        return(self.__converter.convert_to_lowest_join(self.__register, outMeasures))
+        
+        '''
         outList = []
         for el in self.__register.list:
             uni = self.__converter.unify_measure(el.measure)
             outList.append(MNum.Elem(el.rational.mul(uni.rational), uni.measure))
 
         return(MNum.MixedNum(outList))
+        '''
 
     def unify_measures(self, pars = None):
         """Унифицирует: Приводит все части составной единицы к одинаковому (наименьшему) значению"""

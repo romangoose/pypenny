@@ -703,10 +703,11 @@ class Converter:
                 elem = self.disclose_alias(msr.name)
                 if elem:
                     iSgn = 1 if msr.exponent > 0 else -1
-                    if iSgn > 0:
-                        mult = mult.mul(elem.rational)
-                    else:
-                        mult = mult.div(elem.rational)
+                    for i in range(abs(msr.exponent)):
+                        if iSgn > 0:
+                            mult = mult.mul(elem.rational)
+                        else:
+                            mult = mult.div(elem.rational)
                     for fndPart in elem.measure.list:
                         outList.append(MsrPart(fndPart.name, fndPart.exponent * iSgn))
                 else:
@@ -723,10 +724,11 @@ class Converter:
             elem = self.disclose_alias(inPart.name)
             if elem:
                 iSgn = 1 if inPart.exponent > 0 else -1
-                if iSgn > 0:
-                    mult = mult.mul(elem.rational)
-                else:
-                    mult = mult.div(elem.rational)
+                for i in range(abs(inPart.exponent)):
+                    if iSgn > 0:
+                        mult = mult.mul(elem.rational)
+                    else:
+                        mult = mult.div(elem.rational)
                 for fndPart in elem.measure.list:
                     outList.append(MsrPart(fndPart.name, fndPart.exponent * iSgn))
             else:

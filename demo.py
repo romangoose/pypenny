@@ -1,7 +1,7 @@
 # Any copyright is dedicated to the Public Domain.
 # https://creativecommons.org/publicdomain/zero/1.0/
 
-# Версия 2023-02-07
+# Версия 2023-02-21
 
 from sys import argv as sysArgv
 
@@ -113,7 +113,7 @@ class main:
             
         res = self.__converter.convert(self.__register, measures)
         if len(res) != 0:
-            print('не конвертировано: ', MStr.to_string(res[1]))
+            print('not converted: ', MStr.to_string(res[1]))
 
         mNum = self.normalize(res[0].compose(res[1]))
         self.__register = self.normalize(mNum)
